@@ -71,6 +71,8 @@ export default async function HomePage() {
         title: true,
         description: true,
         imgUrl: true,
+        location: true,
+        badget: true,
       },
     }),
     // ユーザーが保存したクエストのID一覧を取得（user_idで直接検索）

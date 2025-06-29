@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { UserDTO } from "@/lib/dto";
+import { updateProfileSchema, validateInput } from "@/lib/validation";
 
 interface ProfileHeaderProps {
     user: UserDTO;
@@ -47,8 +48,13 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
 
     // プロフィール更新
     const handleSubmit = async () => {
-        if (!editName.trim()) {
-            setMessage("Put UserName!");
+        // 入力値のバリデーション
+        const validationResult = validateInput(updateProfileSchema, {
+            name: editName
+        });
+
+        if (!validationResult.success) {
+            setMessage(validationResult.error);
             return;
         }
 
@@ -60,7 +66,7 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    name: editName.trim(),
+                    name: validationResult.data.name,
                 }),
             });
 
@@ -80,6 +86,26 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
             setMessage("Failed to update");
         } finally {
             setSaving(false);
+        }
+    };
+
+    // リアルタイムバリデーション
+    const handleNameChange = (value: string) => {
+        setEditName(value);
+
+        // リアルタイムでバリデーション
+        if (value.trim()) {
+            const validationResult = validateInput(updateProfileSchema, {
+                name: value
+            });
+
+            if (!validationResult.success) {
+                setMessage(validationResult.error);
+            } else {
+                setMessage("");
+            }
+        } else {
+            setMessage("");
         }
     };
 
@@ -154,7 +180,7 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
                                 <input
                                     type="text"
                                     value={editName}
-                                    onChange={(e) => setEditName(e.target.value)}
+                                    onChange={(e) => handleNameChange(e.target.value)}
                                     placeholder="Enter your name"
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
                                     disabled={saving}

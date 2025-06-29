@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 import { authRateLimiter, withRateLimit } from "@/lib/rate-limit";
+import { updateProfileSchema, validateInput } from "@/lib/validation";
 
 // キャッシュを無効化
 export const dynamic = "force-dynamic";
@@ -107,43 +108,24 @@ export async function PUT(request: NextRequest) {
     }
 
     // 3) リクエストボディからデータを取得
-    const { name } = await request.json();
+    const body = await request.json();
 
-    // 4) 入力値検証を強化
-    if (!name || typeof name !== "string") {
+    // 4) Zodバリデーション（SQLインジェクション対策）
+    const validationResult = validateInput(updateProfileSchema, body);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: "名前は必須です" },
+        { error: validationResult.error },
         { status: 400, headers }
       );
     }
 
-    const trimmedName = name.trim();
-    if (trimmedName.length === 0) {
-      return NextResponse.json(
-        { error: "名前は空にできません" },
-        { status: 400, headers }
-      );
-    }
+    const { name } = validationResult.data;
 
-    if (trimmedName.length > 100) {
-      return NextResponse.json(
-        { error: "名前は100文字以内で入力してください" },
-        { status: 400, headers }
-      );
-    }
-
-    // 5) XSS対策: HTMLタグをエスケープ
-    const sanitizedName = trimmedName
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#x27;");
-
-    // 6) ユーザー情報を更新
+    // 5) ユーザー情報を更新（Prismaのパラメータ化クエリでSQLインジェクション対策）
     const updatedUser = await prisma.user.update({
       where: { email: session.user.email },
       data: {
-        name: sanitizedName,
+        name: name,
       },
       select: {
         name: true,

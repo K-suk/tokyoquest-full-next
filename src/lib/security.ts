@@ -311,3 +311,31 @@ export function createSecureApiHandler(
 
 // エクスポート
 export { questRateLimiter, authRateLimiter, adminRateLimiter, questIdSchema };
+
+// CSRF対策
+export function generateCSRFToken(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+export function validateCSRFToken(
+  token: string,
+  sessionToken: string
+): boolean {
+  // セッショントークンとCSRFトークンの組み合わせを検証
+  const expectedToken = crypto
+    .createHash("sha256")
+    .update(sessionToken + process.env.NEXTAUTH_SECRET)
+    .digest("hex");
+
+  return token === expectedToken;
+}
+
+// CSRFトークンをレスポンスヘッダーに追加
+export function addCSRFTokenToHeaders(
+  headers: Record<string, string>
+): Record<string, string> {
+  return {
+    ...headers,
+    "X-CSRF-Token": generateCSRFToken(),
+  };
+}

@@ -71,7 +71,7 @@ export default async function SavedQuestsPage() {
     // 4) DTOに変換してClient Componentに渡す（セキュリティ強化）
     const savedQuestDTOs = savedQuests.map(savedQuest => ({
         id: savedQuest.id,
-        saved_at: savedQuest.saved_at,
+        saved_at: savedQuest.saved_at.toISOString(),
         quest: toQuestDTO(savedQuest.quest),
     }));
 

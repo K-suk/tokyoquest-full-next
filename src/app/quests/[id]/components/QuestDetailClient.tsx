@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { QuestDTO } from '@/lib/dto';
 
-interface QuestMeta extends QuestDTO {
+interface QuestMeta extends Omit<QuestDTO, 'location' | 'badget'> {
     badget?: string;
     location?: string;
     tips?: string;
