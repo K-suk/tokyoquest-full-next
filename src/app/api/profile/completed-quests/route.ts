@@ -1,30 +1,65 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
+import { authRateLimiter, withRateLimit } from "@/lib/rate-limit";
 
 // キャッシュを無効化
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-export async function GET() {
+// セキュリティヘッダー
+export const headers = {
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "origin-when-cross-origin",
+  "X-XSS-Protection": "1; mode=block",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  "Content-Security-Policy":
+    "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';",
+};
+
+export async function GET(request: NextRequest) {
   try {
-    // セッション確認
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // 1) レート制限チェック
+    const ip =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
+    const rateLimitId = `${ip}:${userAgent}`;
+
+    const { allowed } = withRateLimit(authRateLimiter, rateLimitId);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "レート制限に達しました" },
+        { status: 429, headers }
+      );
     }
 
-    // ユーザー情報を取得
+    // 2) セッション確認
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: "認証が必要です" },
+        { status: 401, headers }
+      );
+    }
+
+    // 3) ユーザー情報を取得
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
+      select: { id: true },
     });
 
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "ユーザーが見つかりません" },
+        { status: 404, headers }
+      );
     }
 
-    // 完了したquest一覧を取得
+    // 4) 完了したquest一覧を取得
     const completedQuests = await prisma.questCompletion.findMany({
       where: {
         user_id: user.id,
@@ -44,14 +79,17 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({
-      completedQuests: completedQuests,
-    });
-  } catch (error) {
-    console.error("Error fetching completed quests:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      {
+        completedQuests: completedQuests,
+      },
+      { headers }
+    );
+  } catch (error) {
+    console.error("完了済みクエスト取得エラー:", error);
+    return NextResponse.json(
+      { error: "内部サーバーエラーが発生しました" },
+      { status: 500, headers }
     );
   }
 }

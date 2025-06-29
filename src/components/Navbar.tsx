@@ -78,15 +78,6 @@ const Navbar = () => {
                                 </Link>
                             </li>
                             <li>
-                                <Link
-                                    href="/admin"
-                                    onClick={() => setOpen(false)}
-                                    className="text-2xl hover:opacity-80 transition-opacity duration-200 block text-yellow-300"
-                                >
-                                    Admin Panel
-                                </Link>
-                            </li>
-                            <li>
                                 <button
                                     onClick={handleSignOut}
                                     className="text-2xl hover:opacity-80 transition-opacity duration-200"

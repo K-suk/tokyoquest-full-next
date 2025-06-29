@@ -2,16 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-// 認証が不要なパス（パブリックパス）
-const publicPaths = [
-  "/login",
-  "/api/auth",
-  "/favicon.ico",
-  "/images",
-  "/_next",
-  "/api/webhooks",
-];
-
 // 保護されたパス（認証必須）
 const protectedPaths = [
   "/",
@@ -26,97 +16,100 @@ const protectedPaths = [
   "/api/saved-quests",
 ];
 
-// パスがパブリックかどうかをチェック
-function isPublicPath(pathname: string): boolean {
-  return publicPaths.some((path) => pathname.startsWith(path));
-}
-
 // パスが保護されているかどうかをチェック
 function isProtectedPath(pathname: string): boolean {
   return protectedPaths.some((path) => pathname.startsWith(path));
 }
 
+// ログインページのセキュリティチェック
+function validateLoginRequest(request: NextRequest): boolean {
+  const userAgent = request.headers.get("user-agent") || "";
+
+  // ボットの検出
+  const botPatterns = [
+    /bot/i,
+    /crawler/i,
+    /spider/i,
+    /scraper/i,
+    /curl/i,
+    /wget/i,
+  ];
+
+  if (botPatterns.some((pattern) => pattern.test(userAgent))) {
+    return false;
+  }
+
+  return true;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ログインページへのアクセスの場合
+  // ログインページのセキュリティチェック
   if (pathname === "/login") {
-    try {
-      // JWTトークンを検証
-      const token = await getToken({
-        req: request,
-        secret: process.env.NEXTAUTH_SECRET,
-      });
-
-      // トークンが存在する場合（既にログイン済み）
-      if (token) {
-        console.log(
-          `🔄 Redirecting logged-in user from login page to main page`
-        );
-        return NextResponse.redirect(new URL("/", request.url));
-      }
-
-      // 未ログインの場合はログインページを表示
-      return NextResponse.next();
-    } catch (error) {
-      console.error("❌ Middleware authentication error on login page:", error);
-      // エラーが発生した場合はログインページを表示
-      return NextResponse.next();
+    if (!validateLoginRequest(request)) {
+      return NextResponse.json(
+        { error: "アクセスが拒否されました" },
+        { status: 403 }
+      );
     }
+
+    // セキュリティヘッダーを追加
+    const response = NextResponse.next();
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set("X-XSS-Protection", "1; mode=block");
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains"
+    );
+    response.headers.set(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';"
+    );
+
+    return response;
   }
 
-  // パブリックパスの場合は認証チェックをスキップ
-  if (isPublicPath(pathname)) {
-    return NextResponse.next();
-  }
+  // 既存の認証チェック
+  if (isProtectedPath(pathname)) {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
 
-  // 保護されたパスまたはその他のパスの場合、認証チェックを実行
-  if (isProtectedPath(pathname) || pathname !== "/login") {
-    try {
-      // JWTトークンを検証
-      const token = await getToken({
-        req: request,
-        secret: process.env.NEXTAUTH_SECRET,
-      });
-
-      // トークンが存在しない場合（未認証）
-      if (!token) {
-        console.log(`🔒 Unauthorized access attempt to: ${pathname}`);
-        const loginUrl = new URL("/login", request.url);
-        // 元のURLをクエリパラメータとして保存
-        loginUrl.searchParams.set("callbackUrl", request.url);
-        return NextResponse.redirect(loginUrl);
-      }
-
-      // 認証済みの場合は次の処理に進む
-      console.log(`✅ Authorized access to: ${pathname}`);
-      return NextResponse.next();
-    } catch (error) {
-      console.error("❌ Middleware authentication error:", error);
-
-      // エラーが発生した場合もログインページにリダイレクト
+    if (!token) {
       const loginUrl = new URL("/login", request.url);
-      loginUrl.searchParams.set("callbackUrl", request.url);
+      loginUrl.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(loginUrl);
     }
   }
 
-  // その他のパスも認証を要求
+  // 既にログインしているユーザーがログインページにアクセスした場合
+  if (pathname === "/login") {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+
+    if (token) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
-// ミドルウェアを適用するパスを指定
 export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api/auth (NextAuth API routes)
+     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - images (public images)
-     * - api/webhooks (webhook endpoints)
      */
-    "/((?!api/auth|_next/static|_next/image|favicon.ico|images|api/webhooks).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };

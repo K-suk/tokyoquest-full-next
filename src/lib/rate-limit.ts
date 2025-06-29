@@ -1,82 +1,88 @@
-// メモリベースのレート制限
+// レート制限の実装
+// メモリベースのシンプルなレート制限
+
 interface RateLimitEntry {
-  timestamp: number;
   count: number;
+  resetTime: number;
 }
 
-const rateLimitStore = new Map<string, RateLimitEntry>();
+class RateLimiter {
+  private limits: Map<string, RateLimitEntry> = new Map();
+  private readonly windowMs: number;
+  private readonly maxRequests: number;
 
-// レート制限の設定
-const RATE_LIMIT_WINDOW = 60; // 60秒
-const RATE_LIMIT_MAX_REQUESTS = 100; // 最大100リクエスト
+  constructor(windowMs: number = 60000, maxRequests: number = 100) {
+    this.windowMs = windowMs;
+    this.maxRequests = maxRequests;
+  }
 
-export async function rateLimit(
-  identifier: string,
-  endpoint: string
-): Promise<{ success: boolean; remaining: number }> {
-  try {
-    const key = `${endpoint}:${identifier}`;
+  isAllowed(identifier: string): boolean {
     const now = Date.now();
-    const windowStart = now - RATE_LIMIT_WINDOW * 1000;
+    const entry = this.limits.get(identifier);
 
-    // 現在のエントリを取得
-    const entry = rateLimitStore.get(key);
+    if (!entry || now > entry.resetTime) {
+      // 新しいウィンドウまたは期限切れ
+      this.limits.set(identifier, {
+        count: 1,
+        resetTime: now + this.windowMs,
+      });
+      return true;
+    }
 
-    if (entry && entry.timestamp > windowStart) {
-      // ウィンドウ内のリクエスト数が上限を超えている場合
-      if (entry.count >= RATE_LIMIT_MAX_REQUESTS) {
-        return { success: false, remaining: 0 };
+    if (entry.count >= this.maxRequests) {
+      return false;
+    }
+
+    entry.count++;
+    return true;
+  }
+
+  getRemaining(identifier: string): number {
+    const entry = this.limits.get(identifier);
+    if (!entry || Date.now() > entry.resetTime) {
+      return this.maxRequests;
+    }
+    return Math.max(0, this.maxRequests - entry.count);
+  }
+
+  getResetTime(identifier: string): number {
+    const entry = this.limits.get(identifier);
+    return entry ? entry.resetTime : Date.now() + this.windowMs;
+  }
+
+  // 古いエントリをクリーンアップ
+  cleanup(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.limits.entries()) {
+      if (now > entry.resetTime) {
+        this.limits.delete(key);
       }
-
-      // リクエスト数を増加
-      entry.count++;
-      rateLimitStore.set(key, entry);
-      return {
-        success: true,
-        remaining: RATE_LIMIT_MAX_REQUESTS - entry.count,
-      };
-    } else {
-      // 新しいウィンドウを開始
-      rateLimitStore.set(key, { timestamp: now, count: 1 });
-      return { success: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 };
-    }
-  } catch (error) {
-    console.error("Rate limiting error:", error);
-    // エラーの場合は制限を緩和
-    return { success: true, remaining: RATE_LIMIT_MAX_REQUESTS };
-  }
-}
-
-// 古いエントリをクリーンアップする関数
-export function cleanupRateLimitStore() {
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW * 1000;
-
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (entry.timestamp < windowStart) {
-      rateLimitStore.delete(key);
     }
   }
 }
 
-// 定期的にクリーンアップを実行（5分ごと）
-setInterval(cleanupRateLimitStore, 5 * 60 * 1000);
+// 異なるエンドポイント用のレート制限
+export const generalRateLimiter = new RateLimiter(60000, 100); // 1分間に100リクエスト
+export const authRateLimiter = new RateLimiter(60000, 10); // 認証関連は厳しく制限
+export const questRateLimiter = new RateLimiter(60000, 50); // クエスト関連
+export const adminRateLimiter = new RateLimiter(60000, 20); // 管理機能は厳しく制限
 
-// 特定のエンドポイント用のレート制限
-export async function rateLimitQuestCompletion(
-  identifier: string
-): Promise<{ success: boolean; remaining: number }> {
-  return rateLimit(identifier, "quest-completion");
-}
+// 定期的にクリーンアップ
+setInterval(() => {
+  generalRateLimiter.cleanup();
+  authRateLimiter.cleanup();
+  questRateLimiter.cleanup();
+  adminRateLimiter.cleanup();
+}, 60000); // 1分ごとにクリーンアップ
 
-export async function rateLimitReviewSubmission(
+// レート制限ミドルウェア
+export function withRateLimit(
+  rateLimiter: RateLimiter,
   identifier: string
-): Promise<{ success: boolean; remaining: number }> {
-  return rateLimit(identifier, "review-submission");
-}
+): { allowed: boolean; remaining: number; resetTime: number } {
+  const allowed = rateLimiter.isAllowed(identifier);
+  const remaining = rateLimiter.getRemaining(identifier);
+  const resetTime = rateLimiter.getResetTime(identifier);
 
-export async function rateLimitQuestStatus(
-  identifier: string
-): Promise<{ success: boolean; remaining: number }> {
-  return rateLimit(identifier, "quest-status");
+  return { allowed, remaining, resetTime };
 }

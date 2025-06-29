@@ -89,7 +89,7 @@ export default function AdminPage() {
                 ...(completionFilters.userId && { userId: completionFilters.userId })
             });
 
-            const response = await fetch(`/api/admin/completions?${params}`);
+            const response = await fetch(`/api/miasanmia_admin/completions?${params}`);
 
             if (!response.ok) {
                 if (response.status === 403) {
@@ -121,7 +121,7 @@ export default function AdminPage() {
                 ...(questFilters.search && { search: questFilters.search })
             });
 
-            const response = await fetch(`/api/admin/quests?${params}`);
+            const response = await fetch(`/api/miasanmia_admin/quests?${params}`);
 
             if (!response.ok) {
                 if (response.status === 403) {
@@ -147,7 +147,13 @@ export default function AdminPage() {
             setLoading(true);
             setError(null);
 
-            const response = await fetch('/api/admin/tags');
+            const response = await fetch('/api/miasanmia_admin/tags', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(newTag),
+            });
 
             if (!response.ok) {
                 if (response.status === 403) {
@@ -235,7 +241,7 @@ export default function AdminPage() {
     // Quest-Tag紐付け更新
     const updateQuestTags = async (questId: number, tagIds: number[]) => {
         try {
-            const response = await fetch(`/api/admin/quests/${questId}/tags`, {
+            const response = await fetch(`/api/miasanmia_admin/quests/${questId}/tags`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

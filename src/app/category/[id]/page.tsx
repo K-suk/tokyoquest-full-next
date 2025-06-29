@@ -10,6 +10,16 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
+// セキュリティヘッダー
+export const headers = {
+    'X-Frame-Options': 'DENY',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'origin-when-cross-origin',
+    'X-XSS-Protection': '1; mode=block',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';",
+};
+
 interface CategoryPageProps {
     params: Promise<{
         id: string;
@@ -25,15 +35,12 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
     const { id } = await params;
 
-    console.log(`🔍 Category page accessed with id: ${id}`);
-
     // 2) タグとクエストデータを取得（nameまたはidで検索）
     let tag;
 
     // 数値の場合はIDで検索
     const tagId = parseInt(id, 10);
     if (!isNaN(tagId)) {
-        console.log(`🔢 Searching by ID: ${tagId}`);
         tag = await prisma.tag.findUnique({
             where: { id: tagId },
             select: {
@@ -44,7 +51,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         });
     } else {
         // 文字列の場合はnameで検索
-        console.log(`📝 Searching by name: ${id}`);
         tag = await prisma.tag.findUnique({
             where: { name: id },
             select: {
@@ -54,8 +60,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
             },
         });
     }
-
-    console.log(`🏷️ Tag found:`, tag);
 
     if (!tag) {
         notFound();

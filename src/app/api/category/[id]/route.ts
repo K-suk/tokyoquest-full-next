@@ -2,30 +2,64 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { NextRequest, NextResponse } from "next/server";
+import { questRateLimiter, withRateLimit } from "@/lib/rate-limit";
+
+// キャッシュを無効化
+export const dynamic = "force-dynamic";
+
+// セキュリティヘッダー
+export const headers = {
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "origin-when-cross-origin",
+  "X-XSS-Protection": "1; mode=block",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+  "Content-Security-Policy":
+    "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';",
+};
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
-    const session = await getServerSession(authOptions);
+    // 1) レート制限チェック
+    const ip =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
+    const rateLimitId = `${ip}:${userAgent}`;
 
-    if (!id) {
+    const { allowed } = withRateLimit(questRateLimiter, rateLimitId);
+    if (!allowed) {
       return NextResponse.json(
-        { error: "Category ID is required" },
-        { status: 400 }
+        { error: "レート制限に達しました" },
+        { status: 429, headers }
       );
     }
 
-    // 並列でデータを取得してパフォーマンスを向上
+    const { id } = params;
+    const session = await getServerSession(authOptions);
+
+    // 2) 入力検証
+    if (!id || typeof id !== "string" || id.trim().length === 0) {
+      return NextResponse.json(
+        { error: "カテゴリIDは必須です" },
+        { status: 400, headers }
+      );
+    }
+
+    const sanitizedId = id.trim();
+
+    // 3) 並列でデータを取得してパフォーマンスを向上
     const [quests, tag, savedQuests] = await Promise.all([
       // クエストを取得（必要なフィールドのみ選択）
       prisma.quest.findMany({
         where: {
           tags: {
             some: {
-              name: id,
+              name: sanitizedId,
             },
           },
         },
@@ -42,7 +76,7 @@ export async function GET(
       }),
       // タグ情報を取得
       prisma.tag.findFirst({
-        where: { name: id },
+        where: { name: sanitizedId },
         select: {
           name: true,
           description: true,
@@ -65,24 +99,27 @@ export async function GET(
 
     if (!tag) {
       return NextResponse.json(
-        { error: "Category not found" },
-        { status: 404 }
+        { error: "カテゴリが見つかりません" },
+        { status: 404, headers }
       );
     }
 
-    // 保存済みクエストのID配列を作成
+    // 4) 保存済みクエストのID配列を作成
     const savedQuestIds = savedQuests.map((sq) => sq.quest_id);
 
-    return NextResponse.json({
-      quests,
-      tag,
-      savedQuestIds,
-    });
-  } catch (error) {
-    console.error("Error fetching category data:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
+      {
+        quests,
+        tag,
+        savedQuestIds,
+      },
+      { headers }
+    );
+  } catch (error) {
+    console.error("カテゴリデータ取得エラー:", error);
+    return NextResponse.json(
+      { error: "内部サーバーエラーが発生しました" },
+      { status: 500, headers }
     );
   }
 }

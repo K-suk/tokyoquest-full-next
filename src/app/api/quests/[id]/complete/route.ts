@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
-import { rateLimitQuestCompletion } from "@/lib/rate-limit";
+import { questRateLimiter, withRateLimit } from "@/lib/rate-limit";
 
 // キャッシュを無効化
 export const dynamic = "force-dynamic";
@@ -28,8 +28,11 @@ export async function POST(
       request.headers.get("x-forwarded-for") ||
       request.headers.get("x-real-ip") ||
       "unknown";
-    const { success } = await rateLimitQuestCompletion(ip);
-    if (!success) {
+    const userAgent = request.headers.get("user-agent") || "unknown";
+    const rateLimitId = `${ip}:${userAgent}`;
+
+    const { allowed } = withRateLimit(questRateLimiter, rateLimitId);
+    if (!allowed) {
       return NextResponse.json(
         { error: "Rate limit exceeded. Please try again later." },
         { status: 429 }

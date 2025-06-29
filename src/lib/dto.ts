@@ -13,6 +13,8 @@ export interface QuestDTO {
   title: string;
   description: string;
   imgUrl: string | null;
+  location: string;
+  badget: string | null;
 }
 
 export interface ReviewDTO {
@@ -53,6 +55,8 @@ interface QuestInput {
   title: string;
   description: string;
   imgUrl: string | null;
+  location: string;
+  badget: string | null;
 }
 
 interface ReviewInput {
@@ -96,6 +100,8 @@ export function toQuestDTO(quest: QuestInput): QuestDTO {
     title: quest.title,
     description: quest.description,
     imgUrl: quest.imgUrl,
+    location: quest.location,
+    badget: quest.badget,
   };
 }
 
