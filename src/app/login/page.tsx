@@ -11,6 +11,10 @@ function LoginPageContent() {
     const callbackUrl = searchParams.get('callbackUrl') || '/profile';
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [imageError, setImageError] = useState({
+        background: false,
+        logo: false
+    });
 
     // セキュリティ: 既にログインしている場合はリダイレクト
     useEffect(() => {
@@ -81,17 +85,19 @@ function LoginPageContent() {
             {/* 背景イメージ */}
             <div className="absolute inset-0 z-0">
                 <div className="w-full h-full bg-black opacity-70">
-                    <Image
-                        src="/images/login-bg.png"
-                        alt="Tokyo city collage"
-                        fill
-                        className="object-cover"
-                        priority
-                        // セキュリティ: 画像の読み込みエラー処理
-                        onError={() => {
-                            console.error('Background image failed to load');
-                        }}
-                    />
+                    {!imageError.background && (
+                        <Image
+                            src="/images/login-bg.png"
+                            alt="Tokyo city collage"
+                            fill
+                            className="object-cover"
+                            priority
+                            onError={() => {
+                                console.error('Background image failed to load');
+                                setImageError(prev => ({ ...prev, background: true }));
+                            }}
+                        />
+                    )}
                 </div>
             </div>
 
@@ -109,16 +115,22 @@ function LoginPageContent() {
                 {/* ロゴ */}
                 <div className="mb-8 text-center">
                     <div className="relative">
-                        <Image
-                            src="/images/tokyoquest_logo.png"
-                            alt="Tokyo QUEST Logo"
-                            width={400}
-                            height={120}
-                            // セキュリティ: 画像の読み込みエラー処理
-                            onError={() => {
-                                console.error('Logo failed to load');
-                            }}
-                        />
+                        {!imageError.logo ? (
+                            <Image
+                                src="/images/tokyoquest_logo.png"
+                                alt="Tokyo QUEST Logo"
+                                width={400}
+                                height={120}
+                                onError={() => {
+                                    console.error('Logo failed to load');
+                                    setImageError(prev => ({ ...prev, logo: true }));
+                                }}
+                            />
+                        ) : (
+                            <div className="text-white text-4xl font-bold">
+                                Tokyo QUEST
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -197,6 +209,10 @@ function LoginPageFallback() {
                         fill
                         className="object-cover"
                         priority
+                        onError={(e) => {
+                            console.error('Fallback background image failed to load');
+                            // エラー時は背景色のみで表示
+                        }}
                     />
                 </div>
             </div>

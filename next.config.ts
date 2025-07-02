@@ -6,12 +6,16 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "example.com",
+        hostname: "lh3.googleusercontent.com",
         port: "",
-        pathname: "/images/**",
+        pathname: "/**",
       },
     ],
     domains: ["lh3.googleusercontent.com"],
+    unoptimized: false,
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "attachment",
+    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   async headers() {
     return [
