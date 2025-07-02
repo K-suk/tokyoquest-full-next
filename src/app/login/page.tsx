@@ -2,6 +2,7 @@
 
 import { signIn } from "next-auth/react";
 import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
 
@@ -175,9 +176,9 @@ function LoginPageContent() {
                 </div>
 
                 {/* セキュリティ情報 */}
-                <div className="mt-8 text-center text-white text-sm opacity-70">
+                <div className="mt-8 text-center text-white text-sm opacity-70 mb-8">
                     <p>We are using secure Google authentication</p>
-                    <p>We are taking privacy and security seriously</p>
+                    <p>Siging up or in this account automatically agree to our <Link href="/term" className="font-bold">Terms of Service</Link> and <Link href="/privacy" className="font-bold">Privacy Policy</Link></p>
                 </div>
             </div>
         </div>

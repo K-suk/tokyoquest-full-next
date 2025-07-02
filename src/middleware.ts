@@ -16,8 +16,16 @@ const protectedPaths = [
   "/api/saved-quests",
 ];
 
+// 公開アクセス可能なパス（認証不要）
+const publicPaths = ["/login", "/privacy", "/term"];
+
 // パスが保護されているかどうかをチェック
 function isProtectedPath(pathname: string): boolean {
+  // 公開パスの場合は保護されていない
+  if (publicPaths.some((path) => pathname.startsWith(path))) {
+    return false;
+  }
+  // 保護されたパスの場合は保護されている
   return protectedPaths.some((path) => pathname.startsWith(path));
 }
 
@@ -45,17 +53,8 @@ function validateLoginRequest(request: NextRequest): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ログインページのセキュリティチェック
-  if (pathname === "/login") {
-    if (!validateLoginRequest(request)) {
-      return NextResponse.json(
-        { error: "アクセスが拒否されました" },
-        { status: 403 }
-      );
-    }
-
-    // セキュリティヘッダーを追加
-    const response = NextResponse.next();
+  // セキュリティヘッダーを追加する関数
+  const addSecurityHeaders = (response: NextResponse) => {
     response.headers.set("X-Frame-Options", "DENY");
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -68,8 +67,27 @@ export async function middleware(request: NextRequest) {
       "Content-Security-Policy",
       "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';"
     );
-
     return response;
+  };
+
+  // ログインページのセキュリティチェック
+  if (pathname === "/login") {
+    if (!validateLoginRequest(request)) {
+      return NextResponse.json(
+        { error: "アクセスが拒否されました" },
+        { status: 403 }
+      );
+    }
+
+    // セキュリティヘッダーを追加
+    const response = NextResponse.next();
+    return addSecurityHeaders(response);
+  }
+
+  // プライバシーページと利用規約ページにセキュリティヘッダーを追加
+  if (pathname === "/privacy" || pathname === "/term") {
+    const response = NextResponse.next();
+    return addSecurityHeaders(response);
   }
 
   // 既存の認証チェック
