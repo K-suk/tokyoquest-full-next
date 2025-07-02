@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "seed": "node --loader ts-node/esm scripts/seed-tags.ts",
-    "link": "node --loader ts-node/esm scripts/link-quests-tags.ts"
+    "link": "node --loader ts-node/esm scripts/link-quests-tags.ts",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@chakra-ui/react": "^3.21.0",

@@ -23,6 +23,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Prisma接続確認
+    try {
+      await prisma.$connect();
+    } catch (dbError) {
+      console.error("Database connection failed:", dbError);
+      return NextResponse.json(
+        { error: "データベース接続エラーが発生しました" },
+        { status: 503, headers: securityHeaders }
+      );
+    }
     // 1) レート制限チェック
     const ip =
       request.headers.get("x-forwarded-for") ||
