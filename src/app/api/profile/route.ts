@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
 import { authRateLimiter, withRateLimit } from "@/lib/rate-limit";
 import { updateProfileSchema, validateInput } from "@/lib/validation";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 // セキュリティヘッダー
-export const headers = {
+const securityHeaders = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "origin-when-cross-origin",
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     if (!allowed) {
       return NextResponse.json(
         { error: "レート制限に達しました" },
-        { status: 429, headers }
+        { status: 429, headers: securityHeaders }
       );
     }
 
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "認証が必要です" },
-        { status: 401, headers }
+        { status: 401, headers: securityHeaders }
       );
     }
 
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { error: "ユーザーが見つかりません" },
-        { status: 404, headers }
+        { status: 404, headers: securityHeaders }
       );
     }
 
@@ -69,13 +69,13 @@ export async function GET(request: NextRequest) {
       {
         user: user,
       },
-      { headers }
+      { headers: securityHeaders }
     );
   } catch (error) {
     console.error("プロフィール取得エラー:", error);
     return NextResponse.json(
       { error: "内部サーバーエラーが発生しました" },
-      { status: 500, headers }
+      { status: 500, headers: securityHeaders }
     );
   }
 }
@@ -94,7 +94,7 @@ export async function PUT(request: NextRequest) {
     if (!allowed) {
       return NextResponse.json(
         { error: "レート制限に達しました" },
-        { status: 429, headers }
+        { status: 429, headers: securityHeaders }
       );
     }
 
@@ -103,7 +103,7 @@ export async function PUT(request: NextRequest) {
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "認証が必要です" },
-        { status: 401, headers }
+        { status: 401, headers: securityHeaders }
       );
     }
 
@@ -115,7 +115,7 @@ export async function PUT(request: NextRequest) {
     if (!validationResult.success) {
       return NextResponse.json(
         { error: validationResult.error },
-        { status: 400, headers }
+        { status: 400, headers: securityHeaders }
       );
     }
 
@@ -139,13 +139,13 @@ export async function PUT(request: NextRequest) {
       {
         user: updatedUser,
       },
-      { headers }
+      { headers: securityHeaders }
     );
   } catch (error) {
     console.error("プロフィール更新エラー:", error);
     return NextResponse.json(
       { error: "内部サーバーエラーが発生しました" },
-      { status: 500, headers }
+      { status: 500, headers: securityHeaders }
     );
   }
 }

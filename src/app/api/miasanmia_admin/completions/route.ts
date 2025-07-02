@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
 import { adminRateLimiter, withRateLimit } from "@/lib/rate-limit";
 
@@ -8,7 +8,7 @@ import { adminRateLimiter, withRateLimit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 // セキュリティヘッダー
-export const headers = {
+const securityHeaders = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "origin-when-cross-origin",
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (!allowed) {
       return NextResponse.json(
         { error: "レート制限に達しました" },
-        { status: 429, headers }
+        { status: 429, headers: securityHeaders }
       );
     }
 
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "認証が必要です" },
-        { status: 401, headers }
+        { status: 401, headers: securityHeaders }
       );
     }
 
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     if (!user || !user.isStaff) {
       return NextResponse.json(
         { error: "管理者権限が必要です" },
-        { status: 403, headers }
+        { status: 403, headers: securityHeaders }
       );
     }
 
@@ -72,14 +72,14 @@ export async function GET(request: NextRequest) {
     if (isNaN(page) || page < 1) {
       return NextResponse.json(
         { error: "無効なページ番号です" },
-        { status: 400, headers }
+        { status: 400, headers: securityHeaders }
       );
     }
 
     if (isNaN(limit) || limit < 1 || limit > 100) {
       return NextResponse.json(
         { error: "無効な制限数です（1-100の範囲で指定してください）" },
-        { status: 400, headers }
+        { status: 400, headers: securityHeaders }
       );
     }
 
@@ -94,7 +94,7 @@ export async function GET(request: NextRequest) {
       if (isNaN(parsedQuestId) || parsedQuestId <= 0) {
         return NextResponse.json(
           { error: "無効なクエストIDです" },
-          { status: 400, headers }
+          { status: 400, headers: securityHeaders }
         );
       }
       where.quest_id = parsedQuestId;
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       if (sanitizedUserId.length === 0) {
         return NextResponse.json(
           { error: "無効なユーザーIDです" },
-          { status: 400, headers }
+          { status: 400, headers: securityHeaders }
         );
       }
       where.user_id = sanitizedUserId;
@@ -158,13 +158,13 @@ export async function GET(request: NextRequest) {
           totalPages: Math.ceil(total / limit),
         },
       },
-      { headers }
+      { headers: securityHeaders }
     );
   } catch (error) {
     console.error("完了データ取得エラー:", error);
     return NextResponse.json(
       { error: "内部サーバーエラーが発生しました" },
-      { status: 500, headers }
+      { status: 500, headers: securityHeaders }
     );
   }
 }

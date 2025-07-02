@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 
 interface Completion {
@@ -77,7 +77,7 @@ export default function AdminPage() {
     const [showImageModal, setShowImageModal] = useState(false);
 
     // データ取得関数
-    const fetchCompletions = async () => {
+    const fetchCompletions = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
@@ -108,9 +108,9 @@ export default function AdminPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [completionFilters]);
 
-    const fetchQuests = async () => {
+    const fetchQuests = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
@@ -140,20 +140,14 @@ export default function AdminPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [questFilters]);
 
-    const fetchTags = async () => {
+    const fetchTags = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
 
-            const response = await fetch('/api/miasanmia_admin/tags', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(newTag),
-            });
+            const response = await fetch('/api/miasanmia_admin/tags');
 
             if (!response.ok) {
                 if (response.status === 403) {
@@ -172,7 +166,7 @@ export default function AdminPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     // タブ切り替え時のデータ取得
     useEffect(() => {
@@ -183,7 +177,7 @@ export default function AdminPage() {
         } else if (activeTab === 'tags') {
             fetchTags();
         }
-    }, [activeTab, completionFilters, questFilters]);
+    }, [activeTab, completionFilters, questFilters, fetchCompletions, fetchQuests, fetchTags]);
 
     // 画像ダウンロード
     const downloadImage = (imageData: string, filename: string) => {

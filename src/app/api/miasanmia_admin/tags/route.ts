@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
 import { adminRateLimiter, withRateLimit } from "@/lib/rate-limit";
 
@@ -8,7 +8,7 @@ import { adminRateLimiter, withRateLimit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 // セキュリティヘッダー
-export const headers = {
+const securityHeaders = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "origin-when-cross-origin",
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (!allowed) {
       return NextResponse.json(
         { error: "レート制限に達しました" },
-        { status: 429, headers }
+        { status: 429, headers: securityHeaders }
       );
     }
 
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "認証が必要です" },
-        { status: 401, headers }
+        { status: 401, headers: securityHeaders }
       );
     }
 
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     if (!user || !user.isStaff) {
       return NextResponse.json(
         { error: "管理者権限が必要です" },
-        { status: 403, headers }
+        { status: 403, headers: securityHeaders }
       );
     }
 
@@ -82,13 +82,13 @@ export async function GET(request: NextRequest) {
           questCount: tag._count.quests,
         })),
       },
-      { headers }
+      { headers: securityHeaders }
     );
   } catch (error) {
     console.error("タグ取得エラー:", error);
     return NextResponse.json(
       { error: "内部サーバーエラーが発生しました" },
-      { status: 500, headers }
+      { status: 500, headers: securityHeaders }
     );
   }
 }
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
     if (!allowed) {
       return NextResponse.json(
         { error: "レート制限に達しました" },
-        { status: 429, headers }
+        { status: 429, headers: securityHeaders }
       );
     }
 
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "認証が必要です" },
-        { status: 401, headers }
+        { status: 401, headers: securityHeaders }
       );
     }
 
@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
     if (!user || !user.isStaff) {
       return NextResponse.json(
         { error: "管理者権限が必要です" },
-        { status: 403, headers }
+        { status: 403, headers: securityHeaders }
       );
     }
 
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     if (!name || typeof name !== "string" || name.trim() === "") {
       return NextResponse.json(
         { error: "タグ名は必須です" },
-        { status: 400, headers }
+        { status: 400, headers: securityHeaders }
       );
     }
 
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     if (trimmedName.length > 50) {
       return NextResponse.json(
         { error: "タグ名は50文字以内で入力してください" },
-        { status: 400, headers }
+        { status: 400, headers: securityHeaders }
       );
     }
 
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
       if (trimmedDescription.length > 200) {
         return NextResponse.json(
           { error: "説明文は200文字以内で入力してください" },
-          { status: 400, headers }
+          { status: 400, headers: securityHeaders }
         );
       }
       // XSS対策: HTMLタグをエスケープ
@@ -189,19 +189,19 @@ export async function POST(request: NextRequest) {
           questCount: 0,
         },
       },
-      { headers }
+      { headers: securityHeaders }
     );
   } catch (error) {
     console.error("タグ作成エラー:", error);
     if (error instanceof Error && error.message.includes("Unique constraint")) {
       return NextResponse.json(
         { error: "タグ名が既に存在します" },
-        { status: 409, headers }
+        { status: 409, headers: securityHeaders }
       );
     }
     return NextResponse.json(
       { error: "内部サーバーエラーが発生しました" },
-      { status: 500, headers }
+      { status: 500, headers: securityHeaders }
     );
   }
 }

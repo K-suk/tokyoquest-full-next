@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
 import { adminRateLimiter, withRateLimit } from "@/lib/rate-limit";
 
@@ -8,7 +8,7 @@ import { adminRateLimiter, withRateLimit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 // セキュリティヘッダー
-export const headers = {
+const securityHeaders = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "origin-when-cross-origin",
@@ -35,7 +35,7 @@ export async function PUT(
     if (!allowed) {
       return NextResponse.json(
         { error: "レート制限に達しました" },
-        { status: 429, headers }
+        { status: 429, headers: securityHeaders }
       );
     }
 
@@ -44,7 +44,7 @@ export async function PUT(
     if (!session?.user?.email) {
       return NextResponse.json(
         { error: "認証が必要です" },
-        { status: 401, headers }
+        { status: 401, headers: securityHeaders }
       );
     }
 
@@ -57,7 +57,7 @@ export async function PUT(
     if (!user || !user.isStaff) {
       return NextResponse.json(
         { error: "管理者権限が必要です" },
-        { status: 403, headers }
+        { status: 403, headers: securityHeaders }
       );
     }
 
@@ -67,7 +67,7 @@ export async function PUT(
     if (isNaN(questId) || questId <= 0) {
       return NextResponse.json(
         { error: "無効なクエストIDです" },
-        { status: 400, headers }
+        { status: 400, headers: securityHeaders }
       );
     }
 
@@ -77,7 +77,7 @@ export async function PUT(
     if (!Array.isArray(tagIds)) {
       return NextResponse.json(
         { error: "tagIdsは配列である必要があります" },
-        { status: 400, headers }
+        { status: 400, headers: securityHeaders }
       );
     }
 
@@ -85,7 +85,7 @@ export async function PUT(
     if (tagIds.length > 10) {
       return NextResponse.json(
         { error: "タグは最大10個まで設定できます" },
-        { status: 400, headers }
+        { status: 400, headers: securityHeaders }
       );
     }
 
@@ -93,7 +93,7 @@ export async function PUT(
       if (typeof tagId !== "number" || tagId <= 0 || !Number.isInteger(tagId)) {
         return NextResponse.json(
           { error: "無効なタグIDが含まれています" },
-          { status: 400, headers }
+          { status: 400, headers: securityHeaders }
         );
       }
     }
@@ -107,7 +107,7 @@ export async function PUT(
     if (!quest) {
       return NextResponse.json(
         { error: "クエストが見つかりません" },
-        { status: 404, headers }
+        { status: 404, headers: securityHeaders }
       );
     }
 
@@ -124,7 +124,7 @@ export async function PUT(
     if (existingTags.length !== tagIds.length) {
       return NextResponse.json(
         { error: "存在しないタグが含まれています" },
-        { status: 400, headers }
+        { status: 400, headers: securityHeaders }
       );
     }
 
@@ -157,13 +157,13 @@ export async function PUT(
         success: true,
         quest: updatedQuest,
       },
-      { headers }
+      { headers: securityHeaders }
     );
   } catch (error) {
     console.error("クエストタグ更新エラー:", error);
     return NextResponse.json(
       { error: "内部サーバーエラーが発生しました" },
-      { status: 500, headers }
+      { status: 500, headers: securityHeaders }
     );
   }
 }

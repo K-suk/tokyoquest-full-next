@@ -3,9 +3,9 @@
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 
-export default function LoginPage() {
+function LoginPageContent() {
     const searchParams = useSearchParams();
     const callbackUrl = searchParams.get('callbackUrl') || '/profile';
     const [isLoading, setIsLoading] = useState(false);
@@ -47,7 +47,7 @@ export default function LoginPage() {
             const now = Date.now();
 
             if (lastAttempt && (now - parseInt(lastAttempt)) < 5000) {
-                setError('ログイン試行が多すぎます。5秒後に再試行してください。');
+                setError('You are trying to login too many times. Please try again in 5 seconds.');
                 return;
             }
 
@@ -62,11 +62,11 @@ export default function LoginPage() {
             });
 
             if (result?.error) {
-                setError('ログインに失敗しました。しばらく時間をおいて再試行してください。');
+                setError('Failed to login. Please try again later.');
             }
         } catch (error) {
             console.error('Login error:', error);
-            setError('予期しないエラーが発生しました。');
+            setError('Unexpected error occurred. Please try again later.');
         } finally {
             setIsLoading(false);
         }
@@ -138,7 +138,7 @@ export default function LoginPage() {
                             : 'hover:bg-gray-100'
                             }`}
                         // セキュリティ: ボタンの無効化状態
-                        aria-label={isLoading ? 'ログイン中...' : 'Googleでログイン'}
+                        aria-label={isLoading ? 'Login trying...' : 'Login with Google'}
                     >
                         {isLoading ? (
                             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-800"></div>
@@ -169,17 +169,65 @@ export default function LoginPage() {
                             </svg>
                         )}
                         <span className="ml-3 text-lg font-medium">
-                            {isLoading ? 'ログイン中...' : 'Continue with Google'}
+                            {isLoading ? 'Loging trying...' : 'Continue with Google'}
                         </span>
                     </button>
                 </div>
 
                 {/* セキュリティ情報 */}
                 <div className="mt-8 text-center text-white text-sm opacity-70">
-                    <p>セキュアなGoogle認証を使用しています</p>
-                    <p>プライバシーとセキュリティを重視しています</p>
+                    <p>We are using secure Google authentication</p>
+                    <p>We are taking privacy and security seriously</p>
                 </div>
             </div>
         </div>
+    );
+}
+
+// ローディングフォールバックコンポーネント
+function LoginPageFallback() {
+    return (
+        <div className="min-h-screen relative overflow-hidden">
+            <div className="absolute inset-0 z-0">
+                <div className="w-full h-full bg-black opacity-70">
+                    <Image
+                        src="/images/login-bg.png"
+                        alt="Tokyo city collage"
+                        fill
+                        className="object-cover"
+                        priority
+                    />
+                </div>
+            </div>
+            <div className="relative z-10 min-h-screen flex flex-col items-center justify-center">
+                <div className="text-white font-bold mb-0">
+                    <h1 className="text-7xl md:text-7xl leading-tight">
+                        Welcome to<br />
+                        city of<br />
+                        infinity side<br />
+                        quests
+                    </h1>
+                </div>
+                <div className="mb-8 text-center">
+                    <div className="relative">
+                        <Image
+                            src="/images/tokyoquest_logo.png"
+                            alt="Tokyo QUEST Logo"
+                            width={400}
+                            height={120}
+                        />
+                    </div>
+                </div>
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            </div>
+        </div>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<LoginPageFallback />}>
+            <LoginPageContent />
+        </Suspense>
     );
 }

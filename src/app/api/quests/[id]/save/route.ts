@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
 import { questRateLimiter, withRateLimit } from "@/lib/rate-limit";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 // セキュリティヘッダー
-export const headers = {
+const securityHeaders = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "origin-when-cross-origin",

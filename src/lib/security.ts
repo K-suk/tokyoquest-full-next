@@ -3,14 +3,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 import {
   withRateLimit,
   questRateLimiter,
   authRateLimiter,
   adminRateLimiter,
+  RateLimiter,
 } from "./rate-limit";
 import { validateInput, questIdSchema } from "./validation";
+import { Session } from "next-auth";
+import crypto from "crypto";
 
 // セキュリティヘッダー
 export const securityHeaders = {
@@ -25,11 +28,17 @@ export const securityHeaders = {
   "X-Permitted-Cross-Domain-Policies": "none",
 };
 
+// ユーザー情報の型定義
+interface UserInfo {
+  id: string;
+  email: string;
+  name: string | null;
+  isStaff: boolean;
+}
+
 // 認証チェック
-export async function requireAuth(
-  request: NextRequest
-): Promise<
-  | { success: true; session: any; user: any }
+export async function requireAuth(): Promise<
+  | { success: true; session: Session; user: UserInfo }
   | { success: false; response: NextResponse }
 > {
   try {
@@ -145,7 +154,7 @@ export function validateRequest<T>(
       };
     }
 
-    return { success: true, data: result.data };
+    return { success: true, data: result.data as T };
   } catch (error) {
     console.error("入力検証エラー:", error);
     return {
@@ -159,13 +168,11 @@ export function validateRequest<T>(
 }
 
 // 管理者権限チェック
-export async function requireAdmin(
-  request: NextRequest
-): Promise<
-  | { success: true; session: any; user: any }
+export async function requireAdmin(): Promise<
+  | { success: true; session: Session; user: UserInfo }
   | { success: false; response: NextResponse }
 > {
-  const authResult = await requireAuth(request);
+  const authResult = await requireAuth();
 
   if (!authResult.success) {
     return authResult;
@@ -189,7 +196,7 @@ export async function requireAdmin(
 
 // セキュアなレスポンス作成
 export function createSecureResponse(
-  data: any,
+  data: Record<string, unknown>,
   status: number = 200
 ): NextResponse {
   return NextResponse.json(data, {
@@ -248,11 +255,13 @@ export const corsHeaders = {
 
 // セキュアなAPIハンドラー作成
 export function createSecureApiHandler(
-  handler: (request: NextRequest & { user?: any }) => Promise<NextResponse>,
+  handler: (
+    request: NextRequest & { user?: UserInfo }
+  ) => Promise<NextResponse>,
   options: {
     requireAuth?: boolean;
     requireAdmin?: boolean;
-    rateLimiter?: any;
+    rateLimiter?: RateLimiter;
     validateSchema?: any;
   } = {}
 ) {
@@ -267,11 +276,11 @@ export function createSecureApiHandler(
       }
 
       // 認証チェック
-      let user = null;
+      let user: UserInfo | null = null;
       if (options.requireAuth || options.requireAdmin) {
         const authResult = options.requireAdmin
-          ? await requireAdmin(request)
-          : await requireAuth(request);
+          ? await requireAdmin()
+          : await requireAuth();
 
         if (!authResult.success) {
           return authResult.response;
@@ -292,8 +301,8 @@ export function createSecureApiHandler(
       }
 
       // ユーザー情報をリクエストに追加
-      const requestWithUser = request as NextRequest & { user?: any };
-      requestWithUser.user = user;
+      const requestWithUser = request as NextRequest & { user?: UserInfo };
+      requestWithUser.user = user || undefined;
 
       // メインハンドラー実行
       return await handler(requestWithUser);

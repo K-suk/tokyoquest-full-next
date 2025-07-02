@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { QuestDTO } from '@/lib/dto';
@@ -58,13 +58,13 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
     const [modalAnimation, setModalAnimation] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    /** questの状態を取得 */
-    const fetchQuestStatus = async () => {
+    const fetchQuestStatus = useCallback(async () => {
         try {
             setLoadingStatus(true);
             const response = await fetch(`/api/quests/${questId}/status`, {
                 cache: 'no-store',
             });
+
             if (response.ok) {
                 const data = await response.json();
                 setStatusData(data);
@@ -76,15 +76,15 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
         } finally {
             setLoadingStatus(false);
         }
-    };
+    }, [questId]);
 
-    /** レビュー一覧を取得 */
-    const fetchReviews = async () => {
+    const fetchReviews = useCallback(async () => {
         try {
             setLoadingReviews(true);
             const response = await fetch(`/api/quests/${questId}/reviews`, {
                 cache: 'no-store',
             });
+
             if (response.ok) {
                 const data = await response.json();
                 setReviews(data.reviews);
@@ -96,13 +96,13 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
         } finally {
             setLoadingReviews(false);
         }
-    };
+    }, [questId]);
 
     // コンポーネントマウント時にquest状態とレビューを取得
     useEffect(() => {
         fetchQuestStatus();
         fetchReviews();
-    }, [questId]);
+    }, [questId, fetchQuestStatus, fetchReviews]);
 
     /** 平均レーティングを計算 */
     const averageRating = useMemo(() => {

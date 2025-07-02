@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 import { NextRequest, NextResponse } from "next/server";
 import { questRateLimiter, withRateLimit } from "@/lib/rate-limit";
 
@@ -8,7 +8,7 @@ import { questRateLimiter, withRateLimit } from "@/lib/rate-limit";
 export const dynamic = "force-dynamic";
 
 // セキュリティヘッダー
-export const headers = {
+const securityHeaders = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "origin-when-cross-origin",
@@ -20,7 +20,7 @@ export const headers = {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // 1) レート制限チェック
@@ -35,18 +35,18 @@ export async function GET(
     if (!allowed) {
       return NextResponse.json(
         { error: "レート制限に達しました" },
-        { status: 429, headers }
+        { status: 429, headers: securityHeaders }
       );
     }
 
-    const { id } = params;
+    const { id } = await params;
     const session = await getServerSession(authOptions);
 
     // 2) 入力検証
     if (!id || typeof id !== "string" || id.trim().length === 0) {
       return NextResponse.json(
         { error: "カテゴリIDは必須です" },
-        { status: 400, headers }
+        { status: 400, headers: securityHeaders }
       );
     }
 
@@ -100,7 +100,7 @@ export async function GET(
     if (!tag) {
       return NextResponse.json(
         { error: "カテゴリが見つかりません" },
-        { status: 404, headers }
+        { status: 404, headers: securityHeaders }
       );
     }
 
@@ -113,13 +113,13 @@ export async function GET(
         tag,
         savedQuestIds,
       },
-      { headers }
+      { headers: securityHeaders }
     );
   } catch (error) {
     console.error("カテゴリデータ取得エラー:", error);
     return NextResponse.json(
       { error: "内部サーバーエラーが発生しました" },
-      { status: 500, headers }
+      { status: 500, headers: securityHeaders }
     );
   }
 }

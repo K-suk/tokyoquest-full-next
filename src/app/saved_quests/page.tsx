@@ -1,5 +1,5 @@
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth-config";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { toQuestDTO } from "@/lib/dto";
@@ -11,14 +11,6 @@ export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
 // セキュリティヘッダー
-export const headers = {
-    'X-Frame-Options': 'DENY',
-    'X-Content-Type-Options': 'nosniff',
-    'Referrer-Policy': 'origin-when-cross-origin',
-    'X-XSS-Protection': '1; mode=block',
-    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';",
-};
 
 // ブラウザのキャッシュを無効化
 export const metadata = {
