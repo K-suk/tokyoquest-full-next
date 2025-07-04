@@ -82,6 +82,10 @@ function LoginPageContent() {
             {/* セキュリティ: CSP nonce対応 */}
             <meta httpEquiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;" />
 
+            {/* 画像のプリロード */}
+            <link rel="preload" as="image" href="/images/login-bg.png" />
+            <link rel="preload" as="image" href="/images/tokyoquest_logo.png" />
+
             {/* 背景イメージ */}
             <div className="absolute inset-0 z-0">
                 <div className="w-full h-full bg-black opacity-70">
@@ -92,6 +96,8 @@ function LoginPageContent() {
                             fill
                             className="object-cover"
                             priority
+                            sizes="100vw"
+                            quality={85}
                             onError={() => {
                                 console.error('Background image failed to load');
                                 setImageError(prev => ({ ...prev, background: true }));
@@ -121,6 +127,8 @@ function LoginPageContent() {
                                 alt="Tokyo QUEST Logo"
                                 width={400}
                                 height={120}
+                                priority
+                                quality={90}
                                 onError={() => {
                                     console.error('Logo failed to load');
                                     setImageError(prev => ({ ...prev, logo: true }));
@@ -209,6 +217,8 @@ function LoginPageFallback() {
                         fill
                         className="object-cover"
                         priority
+                        sizes="100vw"
+                        quality={85}
                         onError={(e) => {
                             console.error('Fallback background image failed to load');
                             // エラー時は背景色のみで表示
@@ -232,6 +242,8 @@ function LoginPageFallback() {
                             alt="Tokyo QUEST Logo"
                             width={400}
                             height={120}
+                            priority
+                            quality={90}
                         />
                     </div>
                 </div>
