@@ -212,7 +212,7 @@ function LoginPageFallback() {
             <div className="absolute inset-0 z-0">
                 <div className="w-full h-full bg-black opacity-70">
                     <Image
-                        src="/public/images/login-bg.png"
+                        src="/images/login-bg.png"
                         alt="Tokyo city collage"
                         fill
                         className="object-cover"
@@ -238,7 +238,7 @@ function LoginPageFallback() {
                 <div className="mb-8 text-center">
                     <div className="relative">
                         <Image
-                            src="/public/images/tokyoquest_logo.png"
+                            src="/images/tokyoquest_logo.png"
                             alt="Tokyo QUEST Logo"
                             width={400}
                             height={120}
