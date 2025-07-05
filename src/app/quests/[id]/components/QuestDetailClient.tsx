@@ -303,7 +303,7 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
             <div className="px-4 md:px-8 lg:px-12 mt-6">
                 <div className="mb-4">
                     <Image
-                        src={"/images/tokyonight.webp"}
+                        src={questMeta.imgUrl || "/images/tokyonight.webp"}
                         alt="Quest Hero"
                         width={400}
                         height={200}

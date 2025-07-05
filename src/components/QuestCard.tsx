@@ -115,7 +115,7 @@ export default function QuestCard({ quest }: QuestCardProps) {
         >
             <div className="relative w-full h-[200px]">
                 <Image
-                    src="/images/tokyonight.webp"
+                    src={quest.imgUrl}
                     alt={quest.title}
                     fill
                     className="object-cover"
