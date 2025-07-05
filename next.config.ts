@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
-/** @type {import('next').NextConfig} */
 const nextConfig: NextConfig = {
   images: {
+    // 既存のドメインに加え、ピクセル指定パスのみを許可
+    domains: ["lh3.googleusercontent.com", "picsum.photos"],
     remotePatterns: [
       {
         protocol: "https",
@@ -10,12 +11,20 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "picsum.photos",
+        port: "",
+        // /seed/<任意文字列>/<幅>/<高さ> や /<幅>/<高さ> など、必要なパターンのみ
+        pathname: "/seed/**",
+      },
     ],
-    domains: ["lh3.googleusercontent.com"],
+    // 開発時のみ最適化をオフ
     unoptimized: process.env.NODE_ENV === "development",
-    dangerouslyAllowSVG: true,
+    // SVG は厳格に制御したい場合は false に
+    dangerouslyAllowSVG: false,
     contentDispositionType: "attachment",
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+    contentSecurityPolicy: "default-src 'self'; script-src 'self'; sandbox;",
     formats: ["image/webp", "image/avif"],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
@@ -25,30 +34,29 @@ const nextConfig: NextConfig = {
       {
         source: "/(.*)",
         headers: [
-          {
-            key: "X-Frame-Options",
-            value: "DENY",
-          },
-          {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
-          },
-          {
-            key: "Referrer-Policy",
-            value: "origin-when-cross-origin",
-          },
-          {
-            key: "X-XSS-Protection",
-            value: "1; mode=block",
-          },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "origin-when-cross-origin" },
+          { key: "X-XSS-Protection", value: "1; mode=block" },
           {
             key: "Strict-Transport-Security",
             value: "max-age=31536000; includeSubDomains",
           },
           {
             key: "Content-Security-Policy",
-            value:
-              "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: lh3.googleusercontent.com; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self';",
+            value: [
+              "default-src 'self'",
+              "script-src 'self'",
+              "style-src 'self' 'unsafe-inline'",
+              // 画像は picsum.photos のみを許可
+              "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos",
+              "font-src 'self' data:",
+              "connect-src 'self' https:",
+              "frame-ancestors 'none'",
+              "object-src 'none'",
+              "base-uri 'self'",
+              "form-action 'self'",
+            ].join("; "),
           },
         ],
       },
@@ -57,7 +65,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Access-Control-Allow-Origin",
-            value: process.env.NEXTAUTH_URL || "http://localhost:3000",
+            value: process.env.NEXTAUTH_URL,
           },
           {
             key: "Access-Control-Allow-Methods",
@@ -67,10 +75,7 @@ const nextConfig: NextConfig = {
             key: "Access-Control-Allow-Headers",
             value: "Content-Type, Authorization",
           },
-          {
-            key: "Access-Control-Allow-Credentials",
-            value: "true",
-          },
+          { key: "Access-Control-Allow-Credentials", value: "true" },
         ],
       },
     ];
