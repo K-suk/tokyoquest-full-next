@@ -228,7 +228,7 @@ function LoginPageFallback() {
             </div>
             <div className="relative z-10 min-h-screen flex flex-col items-center justify-center">
                 <div className="text-white font-bold mb-0">
-                    <h1 className="text-7xl md:text-7xl leading-tight">
+                    <h1 className="text-5xl md:text-7xl leading-tight">
                         Welcome to<br />
                         city of<br />
                         infinity side<br />
