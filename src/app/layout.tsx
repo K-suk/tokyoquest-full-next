@@ -10,8 +10,8 @@ export default async function RootLayout({
   children: ReactNode;
 }) {
   return (
-    <html lang="ja" suppressHydrationWarning>
-      <body>
+    <html lang="ja" suppressHydrationWarning className="light">
+      <body className="light">
         <Providers>
           <ConditionalNavbar />
           {children}

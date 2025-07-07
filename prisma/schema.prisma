@@ -101,9 +101,9 @@ model Quest {
 
 model QuestCompletion {
   id              Int      @id @default(autoincrement())
-  user            User     @relation(fields: [user_id], references: [id])
+  user            User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   user_id         String   @map("user_id")
-  quest           Quest    @relation(fields: [quest_id], references: [id])
+  quest           Quest    @relation(fields: [quest_id], references: [id], onDelete: Cascade)
   quest_id        Int      @map("quest_id")
   completion_date DateTime @default(now())        @map("completion_date")
   media           String?
@@ -114,9 +114,9 @@ model QuestCompletion {
 
 model SavedQuest {
   id       Int      @id @default(autoincrement())
-  user     User     @relation(fields: [user_id], references: [id])
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   user_id  String   @map("user_id")
-  quest    Quest    @relation(fields: [quest_id], references: [id])
+  quest    Quest    @relation(fields: [quest_id], references: [id], onDelete: Cascade)
   quest_id Int      @map("quest_id")
   saved_at DateTime @default(now())        @map("saved_at")
 
@@ -126,9 +126,9 @@ model SavedQuest {
 
 model Review {
   id         Int      @id @default(autoincrement())
-  quest      Quest    @relation(fields: [quest_id], references: [id])
+  quest      Quest    @relation(fields: [quest_id], references: [id], onDelete: Cascade)
   quest_id   Int      @map("quest_id")
-  user       User     @relation(fields: [user_id], references: [id])
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   user_id    String   @map("user_id")
   rating     Int
   comment    String

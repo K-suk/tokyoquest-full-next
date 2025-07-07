@@ -12,10 +12,11 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* ダークモードを無効化し、常にライトモードの色を使用 */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ffffff;
+    --foreground: #171717;
   }
 }
 

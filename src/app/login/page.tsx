@@ -78,7 +78,7 @@ function LoginPageContent() {
     };
 
     return (
-        <div className="min-h-screen relative overflow-hidden">
+        <div className="h-screen relative overflow-hidden">
             {/* セキュリティ: CSP nonce対応 */}
             <meta httpEquiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;" />
 
@@ -107,10 +107,10 @@ function LoginPageContent() {
                 </div>
             </div>
 
-            <div className="relative z-10 min-h-screen flex flex-col items-center justify-center">
+            <div className="relative z-10 h-full flex flex-col items-center justify-center px-4">
                 {/* Welcome テキスト */}
-                <div className="text-white font-bold mb-0">
-                    <h1 className="text-7xl md:text-7xl leading-tight">
+                <div className="text-white font-bold text-center mb-4 sm:mb-6">
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-tight">
                         Welcome to<br />
                         city of<br />
                         infinity side<br />
@@ -119,14 +119,15 @@ function LoginPageContent() {
                 </div>
 
                 {/* ロゴ */}
-                <div className="mb-8 text-center">
+                <div className="mb-4 sm:mb-6 text-center">
                     <div className="relative">
                         {!imageError.logo ? (
                             <Image
                                 src="/images/tokyoquest_logo.png"
                                 alt="Tokyo QUEST Logo"
-                                width={400}
-                                height={120}
+                                width={300}
+                                height={90}
+                                className="w-64 sm:w-80 md:w-96 lg:w-[400px] h-auto"
                                 priority
                                 quality={90}
                                 onError={() => {
@@ -135,7 +136,7 @@ function LoginPageContent() {
                                 }}
                             />
                         ) : (
-                            <div className="text-white text-4xl font-bold">
+                            <div className="text-white text-2xl sm:text-3xl md:text-4xl font-bold">
                                 Tokyo QUEST
                             </div>
                         )}
@@ -144,17 +145,17 @@ function LoginPageContent() {
 
                 {/* エラーメッセージ */}
                 {error && (
-                    <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+                    <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm sm:text-base max-w-xs">
                         {error}
                     </div>
                 )}
 
                 {/* Google サインインボタン */}
-                <div className="w-full max-w-xs">
+                <div className="w-full max-w-xs mb-4 sm:mb-6">
                     <button
                         onClick={handleSignIn}
                         disabled={isLoading}
-                        className={`flex items-center justify-center w-full py-3 px-4 bg-white text-gray-800 rounded-full transition shadow-lg ${isLoading
+                        className={`flex items-center justify-center w-full py-2 sm:py-3 px-4 bg-white text-gray-800 rounded-full transition shadow-lg text-sm sm:text-base ${isLoading
                             ? 'opacity-50 cursor-not-allowed'
                             : 'hover:bg-gray-100'
                             }`}
@@ -162,14 +163,15 @@ function LoginPageContent() {
                         aria-label={isLoading ? 'Login trying...' : 'Login with Google'}
                     >
                         {isLoading ? (
-                            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-800"></div>
+                            <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-gray-800"></div>
                         ) : (
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
+                                width="18"
+                                height="18"
                                 viewBox="0 0 24 24"
                                 aria-hidden="true"
+                                className="sm:w-5 sm:h-5"
                             >
                                 <path
                                     fill="#4285F4"
@@ -189,14 +191,14 @@ function LoginPageContent() {
                                 />
                             </svg>
                         )}
-                        <span className="ml-3 text-lg font-medium">
+                        <span className="ml-2 sm:ml-3 text-sm sm:text-lg font-medium">
                             {isLoading ? 'Loging trying...' : 'Continue with Google'}
                         </span>
                     </button>
                 </div>
 
                 {/* セキュリティ情報 */}
-                <div className="mt-8 text-center text-white text-sm opacity-70 mb-8">
+                <div className="text-center text-white text-xs sm:text-sm opacity-70 px-4">
                     <p>We are using secure Google authentication</p>
                     <p>Siging up or in this account automatically agree to our <Link href="/term" className="font-bold">Terms of Service</Link> and <Link href="/privacy" className="font-bold">Privacy Policy</Link></p>
                 </div>
@@ -208,7 +210,7 @@ function LoginPageContent() {
 // ローディングフォールバックコンポーネント
 function LoginPageFallback() {
     return (
-        <div className="min-h-screen relative overflow-hidden">
+        <div className="h-screen relative overflow-hidden">
             <div className="absolute inset-0 z-0">
                 <div className="w-full h-full bg-black opacity-70">
                     <Image
@@ -226,28 +228,29 @@ function LoginPageFallback() {
                     />
                 </div>
             </div>
-            <div className="relative z-10 min-h-screen flex flex-col items-center justify-center">
-                <div className="text-white font-bold mb-0">
-                    <h1 className="text-5xl md:text-7xl leading-tight">
+            <div className="relative z-10 h-full flex flex-col items-center justify-center px-4">
+                <div className="text-white font-bold text-center mb-4 sm:mb-6">
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-tight">
                         Welcome to<br />
                         city of<br />
                         infinity side<br />
                         quests
                     </h1>
                 </div>
-                <div className="mb-8 text-center">
+                <div className="mb-4 sm:mb-6 text-center">
                     <div className="relative">
                         <Image
                             src="/images/tokyoquest_logo.png"
                             alt="Tokyo QUEST Logo"
-                            width={400}
-                            height={120}
+                            width={300}
+                            height={90}
+                            className="w-64 sm:w-80 md:w-96 lg:w-[400px] h-auto"
                             priority
                             quality={90}
                         />
                     </div>
                 </div>
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-white"></div>
             </div>
         </div>
     );
