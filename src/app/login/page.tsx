@@ -78,7 +78,7 @@ function LoginPageContent() {
     };
 
     return (
-        <div className="h-screen relative overflow-hidden">
+        <div className="fixed inset-0 w-full h-full overflow-hidden" style={{ height: '100dvh' }}>
             {/* セキュリティ: CSP nonce対応 */}
             <meta httpEquiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;" />
 
@@ -107,10 +107,10 @@ function LoginPageContent() {
                 </div>
             </div>
 
-            <div className="relative z-10 h-full flex flex-col items-center justify-center px-4">
+            <div className="relative z-10 w-full h-full flex flex-col items-center justify-center px-4">
                 {/* Welcome テキスト */}
-                <div className="text-white font-bold text-center mb-4 sm:mb-6">
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-tight">
+                <div className="text-white font-bold mb-4 sm:mb-6">
+                    <h1 className="text-5xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-tight">
                         Welcome to<br />
                         city of<br />
                         infinity side<br />
@@ -210,7 +210,7 @@ function LoginPageContent() {
 // ローディングフォールバックコンポーネント
 function LoginPageFallback() {
     return (
-        <div className="h-screen relative overflow-hidden">
+        <div className="fixed inset-0 w-full h-full overflow-hidden" style={{ height: '100dvh' }}>
             <div className="absolute inset-0 z-0">
                 <div className="w-full h-full bg-black opacity-70">
                     <Image
@@ -228,9 +228,9 @@ function LoginPageFallback() {
                     />
                 </div>
             </div>
-            <div className="relative z-10 h-full flex flex-col items-center justify-center px-4">
-                <div className="text-white font-bold text-center mb-4 sm:mb-6">
-                    <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-tight">
+            <div className="relative z-10 w-full h-full flex flex-col items-center justify-center px-4">
+                <div className="text-white font-bold mb-4 sm:mb-6">
+                    <h1 className="text-5xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-tight">
                         Welcome to<br />
                         city of<br />
                         infinity side<br />
