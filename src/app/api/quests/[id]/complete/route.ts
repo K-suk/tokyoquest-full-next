@@ -69,25 +69,33 @@ export async function POST(
     // 5) 入力値検証を強化
     if (!imageData || typeof imageData !== "string") {
       return NextResponse.json(
-        { error: "Image data is required" },
+        { error: "Media data is required" },
         { status: 400 }
       );
     }
 
-    // 6) Base64データの検証
-    if (!imageData.startsWith("data:image/")) {
+    // 6) Base64データの検証（画像または動画）
+    if (
+      !imageData.startsWith("data:image/") &&
+      !imageData.startsWith("data:video/")
+    ) {
       return NextResponse.json(
-        { error: "Invalid image format" },
+        { error: "Invalid media format. Only images and videos are allowed." },
         { status: 400 }
       );
     }
 
-    // 7) データサイズの制限（5MB）
+    // 7) データサイズの制限（10MB for videos, 5MB for images）
     const base64Data = imageData.split(",")[1];
     const dataSize = Math.ceil((base64Data.length * 3) / 4);
-    if (dataSize > 5 * 1024 * 1024) {
+    const maxSize = imageData.startsWith("data:video/")
+      ? 10 * 1024 * 1024
+      : 5 * 1024 * 1024;
+    const maxSizeMB = imageData.startsWith("data:video/") ? 10 : 5;
+
+    if (dataSize > maxSize) {
       return NextResponse.json(
-        { error: "Image size must be less than 5MB" },
+        { error: `Media size must be less than ${maxSizeMB}MB` },
         { status: 400 }
       );
     }

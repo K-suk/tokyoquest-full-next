@@ -365,38 +365,116 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                                 Take a photo or upload an image to complete this quest!
                             </p>
 
-                            <div className="flex gap-4 mb-4">
-                                <button
-                                    onClick={handleCaptureImage}
-                                    className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
-                                >
-                                    📷 Take Photo
-                                </button>
-                                <input
-                                    type="file"
-                                    ref={fileInputRef}
-                                    accept="image/*"
-                                    capture="environment"
-                                    onChange={handleImageUpload}
-                                    className="hidden"
-                                />
-                                <button
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
-                                >
-                                    📤 Upload Image
-                                </button>
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                                {/* 撮影オプション */}
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={handleCaptureImage}
+                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
+                                    >
+                                        📷 Take Photo
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const input = document.createElement('input');
+                                            input.type = 'file';
+                                            input.accept = 'video/*';
+                                            input.capture = 'environment';
+                                            input.onchange = (e) => {
+                                                const file = (e.target as HTMLInputElement).files?.[0];
+                                                if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (e) => {
+                                                        const result = e.target?.result as string;
+                                                        setSelectedImage(result);
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                }
+                                            };
+                                            input.click();
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
+                                    >
+                                        🎥 Record Video
+                                    </button>
+                                </div>
+
+                                {/* アップロードオプション */}
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={() => {
+                                            const input = document.createElement('input');
+                                            input.type = 'file';
+                                            input.accept = 'image/*';
+                                            input.onchange = (e) => {
+                                                const file = (e.target as HTMLInputElement).files?.[0];
+                                                if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (e) => {
+                                                        const result = e.target?.result as string;
+                                                        setSelectedImage(result);
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                }
+                                            };
+                                            input.click();
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
+                                    >
+                                        📤 Upload Image
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const input = document.createElement('input');
+                                            input.type = 'file';
+                                            input.accept = 'video/*';
+                                            input.onchange = (e) => {
+                                                const file = (e.target as HTMLInputElement).files?.[0];
+                                                if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (e) => {
+                                                        const result = e.target?.result as string;
+                                                        setSelectedImage(result);
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                }
+                                            };
+                                            input.click();
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
+                                    >
+                                        🎬 Upload Video
+                                    </button>
+                                </div>
                             </div>
+
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                accept="image/*"
+                                capture="environment"
+                                onChange={handleImageUpload}
+                                className="hidden"
+                            />
 
                             {selectedImage && (
                                 <div className="space-y-4">
                                     <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-gray-200">
-                                        <Image
-                                            src={selectedImage}
-                                            alt="Quest completion proof"
-                                            fill
-                                            className="object-cover"
-                                        />
+                                        {selectedImage.startsWith('data:video/') ? (
+                                            <video
+                                                src={selectedImage}
+                                                controls
+                                                className="w-full h-full object-cover"
+                                                preload="metadata"
+                                            />
+                                        ) : (
+                                            <Image
+                                                src={selectedImage}
+                                                alt="Quest completion proof"
+                                                fill
+                                                className="object-cover"
+                                            />
+                                        )}
                                     </div>
                                     <button
                                         onClick={handleCompleteQuest}
