@@ -3,7 +3,11 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   images: {
     // 既存のドメインに加え、ピクセル指定パスのみを許可
-    domains: ["lh3.googleusercontent.com", "picsum.photos"],
+    domains: [
+      "lh3.googleusercontent.com",
+      "picsum.photos",
+      "images.unsplash.com",
+    ],
     remotePatterns: [
       {
         protocol: "https",
@@ -17,6 +21,12 @@ const nextConfig: NextConfig = {
         port: "",
         // /seed/<任意文字列>/<幅>/<高さ> や /<幅>/<高さ> など、必要なパターンのみ
         pathname: "/seed/**",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        port: "",
+        pathname: "/**",
       },
     ],
     // 開発時のみ最適化をオフ
@@ -48,8 +58,8 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self'",
               "style-src 'self' 'unsafe-inline'",
-              // 画像は picsum.photos のみを許可
-              "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos",
+              // 画像は picsum.photos と Unsplash を許可
+              "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com",
               "font-src 'self' data:",
               "connect-src 'self' https:",
               "frame-ancestors 'none'",
