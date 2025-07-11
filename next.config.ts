@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
       "lh3.googleusercontent.com",
       "picsum.photos",
       "images.unsplash.com",
+      "unsplash.com",
+      "plus.unsplash.com",
     ],
     remotePatterns: [
       {
@@ -25,6 +27,18 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "images.unsplash.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "unsplash.com",
+        port: "",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "plus.unsplash.com",
         port: "",
         pathname: "/**",
       },
@@ -59,7 +73,7 @@ const nextConfig: NextConfig = {
               "script-src 'self'",
               "style-src 'self' 'unsafe-inline'",
               // 画像は picsum.photos と Unsplash を許可
-              "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com",
+              "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com",
               "font-src 'self' data:",
               "connect-src 'self' https:",
               "frame-ancestors 'none'",
