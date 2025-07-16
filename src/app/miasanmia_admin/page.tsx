@@ -778,6 +778,97 @@ export default function AdminPage() {
                     </div>
                 </div>
             )}
+
+            {/* Associate Tag with Quests Modal */}
+            {showAssociateModal && associatingTag && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setShowAssociateModal(false)} />
+                    <div className="relative bg-white p-6 rounded-lg max-w-4xl w-full mx-4 shadow-2xl max-h-[90vh] overflow-auto">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-semibold">
+                                Associate Tag: {associatingTag.name}
+                            </h3>
+                            <button
+                                onClick={() => setShowAssociateModal(false)}
+                                className="text-gray-500 hover:text-gray-700 text-2xl"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div className="mb-6">
+                            <p className="text-sm text-gray-600 mb-4">
+                                Select quests to associate with this tag:
+                            </p>
+
+                            {/* Search Bar */}
+                            <div className="mb-4">
+                                <input
+                                    type="text"
+                                    value={associateSearch}
+                                    onChange={(e) => setAssociateSearch(e.target.value)}
+                                    placeholder="Search quests by title or ID..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                />
+                            </div>
+
+                            {/* Select All Button */}
+                            <div className="mb-4">
+                                <button
+                                    onClick={toggleAllQuests}
+                                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                                >
+                                    {selectedQuestIds.length === associateQuests.length ? 'Deselect All' : 'Select All'}
+                                </button>
+                            </div>
+
+                            {/* Quests List */}
+                            <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg p-4">
+                                {associateQuests.length === 0 ? (
+                                    <p className="text-gray-500 text-sm">
+                                        {associateLoading ? 'Loading quests...' : 'No quests found.'}
+                                    </p>
+                                ) : (
+                                    associateQuests.map((quest) => (
+                                        <label key={quest.id} className="flex items-center space-x-3 py-2 hover:bg-gray-50 rounded px-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedQuestIds.includes(quest.id)}
+                                                onChange={() => toggleQuestSelection(quest.id)}
+                                                className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                                            />
+                                            <div className="flex-1">
+                                                <span className="text-sm font-medium text-gray-900">
+                                                    {quest.title}
+                                                </span>
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                    ID: {quest.id} | Location: {quest.location}
+                                                </div>
+                                            </div>
+                                        </label>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-3">
+                            <button
+                                onClick={() => setShowAssociateModal(false)}
+                                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={associateTagWithQuests}
+                                disabled={selectedQuestIds.length === 0 || associateLoading}
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {associateLoading ? 'Associating...' : `Associate with ${selectedQuestIds.length} quest(s)`}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
