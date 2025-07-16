@@ -107,6 +107,9 @@ export default function AdminPage() {
     const [associateSearch, setAssociateSearch] = useState('');
     const [associateLoading, setAssociateLoading] = useState(false);
 
+    // Tag search state
+    const [tagSearch, setTagSearch] = useState('');
+
     // Shared state
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -329,6 +332,7 @@ export default function AdminPage() {
     const openTagModal = (quest: Quest) => {
         setEditingQuest(quest);
         setSelectedTagIds(quest.tags.map(t => t.id));
+        setTagSearch(''); // Reset search when opening modal
         setShowTagModal(true);
     };
 
@@ -350,6 +354,7 @@ export default function AdminPage() {
             setShowTagModal(false);
             setEditingQuest(null);
             setSelectedTagIds([]);
+            setTagSearch(''); // Reset search when saving
         } catch (error) {
             console.error('Error saving tag selection:', error);
         }
@@ -720,7 +725,10 @@ export default function AdminPage() {
                                 Edit Tags for: {editingQuest.title}
                             </h3>
                             <button
-                                onClick={() => setShowTagModal(false)}
+                                onClick={() => {
+                                    setShowTagModal(false);
+                                    setTagSearch(''); // Reset search when closing modal
+                                }}
                                 className="text-gray-500 hover:text-gray-700 text-2xl"
                             >
                                 ×
@@ -731,39 +739,64 @@ export default function AdminPage() {
                             <p className="text-sm text-gray-600 mb-4">
                                 Select the tags you want to assign to this quest:
                             </p>
+
+                            {/* Search Bar */}
+                            <div className="mb-4">
+                                <input
+                                    type="text"
+                                    value={tagSearch}
+                                    onChange={(e) => setTagSearch(e.target.value)}
+                                    placeholder="Search tags by name..."
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                />
+                            </div>
+
                             <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-4">
-                                {tags.map((tag) => (
-                                    <label key={tag.id} className="flex items-center space-x-3 py-2 hover:bg-gray-50 rounded px-2 cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedTagIds.includes(tag.id)}
-                                            onChange={() => toggleTagSelection(tag.id)}
-                                            className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-                                        />
-                                        <div className="flex-1">
-                                            <span className="text-sm font-medium text-gray-900">
-                                                {tag.name}
+                                {tags
+                                    .filter(tag =>
+                                        tag.name.toLowerCase().includes(tagSearch.toLowerCase()) ||
+                                        (tag.description && tag.description.toLowerCase().includes(tagSearch.toLowerCase()))
+                                    )
+                                    .map((tag) => (
+                                        <label key={tag.id} className="flex items-center space-x-3 py-2 hover:bg-gray-50 rounded px-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectedTagIds.includes(tag.id)}
+                                                onChange={() => toggleTagSelection(tag.id)}
+                                                className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                                            />
+                                            <div className="flex-1">
+                                                <span className="text-sm font-medium text-gray-900">
+                                                    {tag.name}
+                                                </span>
+                                                {tag.description && (
+                                                    <p className="text-xs text-gray-500 mt-1">
+                                                        {tag.description}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <span className="text-xs text-gray-400">
+                                                {tag.questCount} quests
                                             </span>
-                                            {tag.description && (
-                                                <p className="text-xs text-gray-500 mt-1">
-                                                    {tag.description}
-                                                </p>
-                                            )}
-                                        </div>
-                                        <span className="text-xs text-gray-400">
-                                            {tag.questCount} quests
-                                        </span>
-                                    </label>
-                                ))}
-                                {tags.length === 0 && (
-                                    <p className="text-gray-500 text-sm">No tags available. Create some tags first.</p>
-                                )}
+                                        </label>
+                                    ))}
+                                {tags.filter(tag =>
+                                    tag.name.toLowerCase().includes(tagSearch.toLowerCase()) ||
+                                    (tag.description && tag.description.toLowerCase().includes(tagSearch.toLowerCase()))
+                                ).length === 0 && (
+                                        <p className="text-gray-500 text-sm">
+                                            {tagSearch ? 'No tags found matching your search.' : 'No tags available. Create some tags first.'}
+                                        </p>
+                                    )}
                             </div>
                         </div>
 
                         <div className="flex justify-end space-x-3">
                             <button
-                                onClick={() => setShowTagModal(false)}
+                                onClick={() => {
+                                    setShowTagModal(false);
+                                    setTagSearch(''); // Reset search when closing modal
+                                }}
                                 className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
                             >
                                 Cancel
