@@ -65,6 +65,10 @@ export async function GET(request: NextRequest) {
     const pageParam = searchParams.get("page") || "1";
     const limitParam = searchParams.get("limit") || "20";
     const search = searchParams.get("search") || "";
+    const questId = searchParams.get("questId") || "";
+    const tagId = searchParams.get("tagId") || "";
+    const sortBy = searchParams.get("sortBy") || "date_created";
+    const sortOrder = searchParams.get("sortOrder") || "desc";
 
     // 入力検証
     const page = parseInt(pageParam);
@@ -84,20 +88,57 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // ソート順の検証
+    const validSortFields = ["id", "title", "date_created", "location"];
+    const validSortOrders = ["asc", "desc"];
+
+    if (!validSortFields.includes(sortBy)) {
+      return NextResponse.json(
+        { error: "無効なソートフィールドです" },
+        { status: 400, headers: securityHeaders }
+      );
+    }
+
+    if (!validSortOrders.includes(sortOrder)) {
+      return NextResponse.json(
+        { error: "無効なソート順です" },
+        { status: 400, headers: securityHeaders }
+      );
+    }
+
     // 5) フィルタ条件を構築
     const where: {
       OR?: Array<{
         title?: { contains: string; mode: "insensitive" };
         description?: { contains: string; mode: "insensitive" };
       }>;
+      id?: number;
+      tags?: { some: { id: number } };
     } = {};
 
+    // 検索フィルタ
     if (search.trim().length > 0) {
       const sanitizedSearch = search.trim();
       where.OR = [
         { title: { contains: sanitizedSearch, mode: "insensitive" } },
         { description: { contains: sanitizedSearch, mode: "insensitive" } },
       ];
+    }
+
+    // ID検索フィルタ
+    if (questId.trim().length > 0) {
+      const id = parseInt(questId.trim());
+      if (!isNaN(id)) {
+        where.id = id;
+      }
+    }
+
+    // タグ検索フィルタ
+    if (tagId.trim().length > 0) {
+      const tagIdNum = parseInt(tagId.trim());
+      if (!isNaN(tagIdNum)) {
+        where.tags = { some: { id: tagIdNum } };
+      }
     }
 
     // 6) ページネーション計算
@@ -117,7 +158,7 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: {
-          date_created: "desc",
+          [sortBy]: sortOrder,
         },
         skip,
         take: limit,

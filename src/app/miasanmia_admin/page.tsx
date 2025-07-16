@@ -77,7 +77,11 @@ export default function AdminPage() {
     const [questFilters, setQuestFilters] = useState({
         page: 1,
         limit: 20,
-        search: ''
+        search: '',
+        questId: '',
+        tagId: '',
+        sortBy: 'date_created',
+        sortOrder: 'desc'
     });
 
     // Tags state
@@ -143,7 +147,11 @@ export default function AdminPage() {
             const params = new URLSearchParams({
                 page: questFilters.page.toString(),
                 limit: questFilters.limit.toString(),
-                ...(questFilters.search && { search: questFilters.search })
+                ...(questFilters.search && { search: questFilters.search }),
+                ...(questFilters.questId && { questId: questFilters.questId }),
+                ...(questFilters.tagId && { tagId: questFilters.tagId }),
+                sortBy: questFilters.sortBy,
+                sortOrder: questFilters.sortOrder
             });
 
             const response = await fetch(`/api/miasanmia_admin/quests?${params}`);
@@ -536,6 +544,7 @@ export default function AdminPage() {
                                 onUpdateFilters={updateQuestFilters}
                                 onOpenTagModal={openTagModal}
                                 onUploadImage={uploadQuestImage}
+                                tags={tags}
                             />
                         )}
 
@@ -834,19 +843,20 @@ function CompletionsTab({ completions, filters, onUpdateFilters, onDownloadImage
 }
 
 // Quests Tab Component
-function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onUploadImage }: {
+function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onUploadImage, tags }: {
     quests: Quest[];
-    filters: { page: number; limit: number; search: string };
-    onUpdateFilters: (filters: Partial<{ page: number; limit: number; search: string }>) => void;
+    filters: { page: number; limit: number; search: string; questId: string; tagId: string; sortBy: string; sortOrder: string };
+    onUpdateFilters: (filters: Partial<{ page: number; limit: number; search: string; questId: string; tagId: string; sortBy: string; sortOrder: string }>) => void;
     onOpenTagModal: (quest: Quest) => void;
     onUploadImage: (questId: number, file: File) => Promise<string>;
+    tags: Tag[];
 }) {
     return (
         <div>
             {/* フィルター */}
             <div className="bg-white rounded-lg shadow p-6 mb-6">
                 <h2 className="text-lg font-semibold mb-4">Quest Filters</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Search
@@ -858,6 +868,63 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onUploadI
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                             placeholder="Search by title or description"
                         />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Quest ID
+                        </label>
+                        <input
+                            type="number"
+                            value={filters.questId}
+                            onChange={(e) => onUpdateFilters({ questId: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                            placeholder="Enter quest ID"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Tag
+                        </label>
+                        <select
+                            value={filters.tagId}
+                            onChange={(e) => onUpdateFilters({ tagId: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                        >
+                            <option value="">All Tags</option>
+                            {tags.map((tag) => (
+                                <option key={tag.id} value={tag.id}>
+                                    {tag.name} (ID: {tag.id})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Sort By
+                        </label>
+                        <select
+                            value={filters.sortBy}
+                            onChange={(e) => onUpdateFilters({ sortBy: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                        >
+                            <option value="date_created">Date Created</option>
+                            <option value="id">ID</option>
+                            <option value="title">Title</option>
+                            <option value="location">Location</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Sort Order
+                        </label>
+                        <select
+                            value={filters.sortOrder}
+                            onChange={(e) => onUpdateFilters({ sortOrder: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                        >
+                            <option value="desc">Descending</option>
+                            <option value="asc">Ascending</option>
+                        </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -874,6 +941,20 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onUploadI
                             <option value={100}>100</option>
                         </select>
                     </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                    <button
+                        onClick={() => onUpdateFilters({
+                            search: '',
+                            questId: '',
+                            tagId: '',
+                            sortBy: 'date_created',
+                            sortOrder: 'desc'
+                        })}
+                        className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+                    >
+                        Clear Filters
+                    </button>
                 </div>
             </div>
 
