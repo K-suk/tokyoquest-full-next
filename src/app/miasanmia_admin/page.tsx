@@ -99,6 +99,14 @@ export default function AdminPage() {
     const [showTagModal, setShowTagModal] = useState(false);
     const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
+    // Tag association state
+    const [showAssociateModal, setShowAssociateModal] = useState(false);
+    const [associatingTag, setAssociatingTag] = useState<Tag | null>(null);
+    const [associateQuests, setAssociateQuests] = useState<Quest[]>([]);
+    const [selectedQuestIds, setSelectedQuestIds] = useState<number[]>([]);
+    const [associateSearch, setAssociateSearch] = useState('');
+    const [associateLoading, setAssociateLoading] = useState(false);
+
     // Shared state
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -414,6 +422,93 @@ export default function AdminPage() {
         }
     };
 
+    // タグ付与モーダルを開く
+    const openAssociateModal = async (tag: Tag) => {
+        setAssociatingTag(tag);
+        setSelectedQuestIds([]);
+        setAssociateSearch('');
+        setShowAssociateModal(true);
+        await fetchAssociateQuests();
+    };
+
+    // タグ付与用のクエスト一覧を取得
+    const fetchAssociateQuests = async () => {
+        try {
+            setAssociateLoading(true);
+            const params = new URLSearchParams({
+                limit: '100', // より多くのクエストを取得
+                ...(associateSearch && { search: associateSearch })
+            });
+
+            const response = await fetch(`/api/miasanmia_admin/quests?${params}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch quests');
+            }
+
+            const data = await response.json();
+            setAssociateQuests(data.quests);
+        } catch (error) {
+            console.error('Error fetching associate quests:', error);
+            setError('Failed to fetch quests for association');
+        } finally {
+            setAssociateLoading(false);
+        }
+    };
+
+    // クエスト選択を更新
+    const toggleQuestSelection = (questId: number) => {
+        setSelectedQuestIds(prev =>
+            prev.includes(questId)
+                ? prev.filter(id => id !== questId)
+                : [...prev, questId]
+        );
+    };
+
+    // 全選択/全解除
+    const toggleAllQuests = () => {
+        if (selectedQuestIds.length === associateQuests.length) {
+            setSelectedQuestIds([]);
+        } else {
+            setSelectedQuestIds(associateQuests.map(q => q.id));
+        }
+    };
+
+    // タグをクエストに付与
+    const associateTagWithQuests = async () => {
+        if (!associatingTag || selectedQuestIds.length === 0) return;
+
+        try {
+            setAssociateLoading(true);
+            const response = await fetch(`/api/miasanmia_admin/tags/${associatingTag.id}/associate-quests`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ questIds: selectedQuestIds }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to associate tag');
+            }
+
+            const data = await response.json();
+            alert(data.message);
+
+            setShowAssociateModal(false);
+            setAssociatingTag(null);
+            setSelectedQuestIds([]);
+
+            // クエスト一覧を更新
+            await fetchQuests();
+        } catch (error) {
+            console.error('Error associating tag:', error);
+            alert(`Failed to associate tag: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+            setAssociateLoading(false);
+        }
+    };
+
     // Quest画像アップロード
     const uploadQuestImage = async (questId: number, file: File) => {
         try {
@@ -557,6 +652,7 @@ export default function AdminPage() {
                                 onSetNewTag={setNewTag}
                                 onSetShowNewTagForm={setShowNewTagForm}
                                 onCreateTag={createTag}
+                                onOpenAssociateModal={openAssociateModal}
                             />
                         )}
 
@@ -1095,13 +1191,14 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onUploadI
 }
 
 // Tags Tab Component
-function TagsTab({ tags, newTag, showNewTagForm, onSetNewTag, onSetShowNewTagForm, onCreateTag }: {
+function TagsTab({ tags, newTag, showNewTagForm, onSetNewTag, onSetShowNewTagForm, onCreateTag, onOpenAssociateModal }: {
     tags: Tag[];
     newTag: { name: string; description: string };
     showNewTagForm: boolean;
     onSetNewTag: (tag: { name: string; description: string }) => void;
     onSetShowNewTagForm: (show: boolean) => void;
     onCreateTag: () => void;
+    onOpenAssociateModal: (tag: Tag) => void;
 }) {
     return (
         <div>
@@ -1179,6 +1276,9 @@ function TagsTab({ tags, newTag, showNewTagForm, onSetNewTag, onSetShowNewTagFor
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Created
                                 </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Actions
+                                </th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -1200,6 +1300,14 @@ function TagsTab({ tags, newTag, showNewTagForm, onSetNewTag, onSetShowNewTagFor
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                         {new Date(tag.created_at).toLocaleDateString()}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button
+                                            onClick={() => onOpenAssociateModal(tag)}
+                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded border border-blue-200"
+                                        >
+                                            Associate
+                                        </button>
                                     </td>
                                 </tr>
                             ))}
