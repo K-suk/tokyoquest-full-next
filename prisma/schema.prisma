@@ -73,6 +73,7 @@ model Tag {
   id          Int       @id @default(autoincrement())
   name        String    @unique
   description   String?
+  imageUrl    String?   @map("imageUrl")
   created_at  DateTime  @default(now())              @map("created_at")
 
   quests      Quest[]   @relation("QuestTags")

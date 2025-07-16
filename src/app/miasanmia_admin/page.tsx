@@ -34,6 +34,7 @@ interface Tag {
     id: number;
     name: string;
     description: string | null;
+    imageUrl: string | null;
     created_at: string;
     questCount: number;
 }
@@ -110,6 +111,10 @@ export default function AdminPage() {
     // Tag search state
     const [tagSearch, setTagSearch] = useState('');
     const [selectAllTags, setSelectAllTags] = useState(false);
+
+    // Tag editing state
+    const [editingTag, setEditingTag] = useState<Tag | null>(null);
+    const [showEditTagModal, setShowEditTagModal] = useState(false);
 
     // Shared state
     const [loading, setLoading] = useState(true);
@@ -282,7 +287,7 @@ export default function AdminPage() {
         if (!newTag.name.trim()) return;
 
         try {
-            const response = await fetch('/api/admin/tags', {
+            const response = await fetch('/api/miasanmia_admin/tags', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -302,6 +307,50 @@ export default function AdminPage() {
         } catch (error) {
             console.error('Error creating tag:', error);
             alert('Failed to create tag. Please try again.');
+        }
+    };
+
+    const updateTag = async (tagId: number, tagData: Partial<Tag>) => {
+        try {
+            const response = await fetch(`/api/miasanmia_admin/tags/${tagId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(tagData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update tag');
+            }
+
+            setShowEditTagModal(false);
+            setEditingTag(null);
+            fetchTags();
+        } catch (error) {
+            console.error('Error updating tag:', error);
+            alert(`Failed to update tag: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    };
+
+    const deleteTag = async (tagId: number) => {
+        if (!confirm('Are you sure you want to delete this tag?')) return;
+
+        try {
+            const response = await fetch(`/api/miasanmia_admin/tags/${tagId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete tag');
+            }
+
+            fetchTags();
+        } catch (error) {
+            console.error('Error deleting tag:', error);
+            alert(`Failed to delete tag: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     };
 
@@ -562,6 +611,54 @@ export default function AdminPage() {
         }
     };
 
+    // Blog画像アップロード
+    const uploadBlogImage = async (file: File) => {
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const response = await fetch('/api/miasanmia_admin/blogs/upload-image', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to upload image');
+            }
+
+            const data = await response.json();
+            return data.imageUrl;
+        } catch (error) {
+            console.error('Error uploading blog image:', error);
+            throw error;
+        }
+    };
+
+    // Tag画像アップロード
+    const uploadTagImage = async (file: File) => {
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const response = await fetch('/api/miasanmia_admin/tags/upload-image', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to upload image');
+            }
+
+            const data = await response.json();
+            return data.imageUrl;
+        } catch (error) {
+            console.error('Error uploading tag image:', error);
+            throw error;
+        }
+    };
+
     if (error) {
         return (
             <div className="min-h-screen bg-gray-50 p-8">
@@ -676,6 +773,13 @@ export default function AdminPage() {
                                 onSetShowNewTagForm={setShowNewTagForm}
                                 onCreateTag={createTag}
                                 onOpenAssociateModal={openAssociateModal}
+                                onUpdateTag={updateTag}
+                                onDeleteTag={deleteTag}
+                                onUploadImage={uploadTagImage}
+                                editingTag={editingTag}
+                                showEditTagModal={showEditTagModal}
+                                onSetEditingTag={setEditingTag}
+                                onSetShowEditTagModal={setShowEditTagModal}
                             />
                         )}
 
@@ -690,6 +794,7 @@ export default function AdminPage() {
                                 onCreateBlog={createBlog}
                                 onUpdateBlog={updateBlog}
                                 onDeleteBlog={deleteBlog}
+                                onUploadImage={uploadBlogImage}
                             />
                         )}
                     </>
@@ -847,6 +952,121 @@ export default function AdminPage() {
                                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
                             >
                                 Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Tag Edit Modal */}
+            {showEditTagModal && editingTag && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setShowEditTagModal(false)} />
+                    <div className="relative bg-white p-6 rounded-lg max-w-2xl w-full mx-4 shadow-2xl">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-semibold">
+                                Edit Tag: {editingTag.name}
+                            </h3>
+                            <button
+                                onClick={() => setShowEditTagModal(false)}
+                                className="text-gray-500 hover:text-gray-700 text-2xl"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Tag Name
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editingTag.name}
+                                    onChange={(e) => setEditingTag(prev => prev ? { ...prev, name: e.target.value } : null)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Description
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editingTag.description || ''}
+                                    onChange={(e) => setEditingTag(prev => prev ? { ...prev, description: e.target.value } : null)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    placeholder="Enter description (optional)"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Tag Image
+                                </label>
+                                <div className="flex items-center space-x-2">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                try {
+                                                    const imageUrl = await uploadTagImage(file);
+                                                    setEditingTag(prev => prev ? { ...prev, imageUrl } : null);
+                                                } catch (error) {
+                                                    alert('Failed to upload tag image');
+                                                }
+                                            }
+                                        }}
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    />
+                                    {editingTag.imageUrl && (
+                                        <button
+                                            onClick={() => setEditingTag(prev => prev ? { ...prev, imageUrl: null } : null)}
+                                            className="px-2 py-2 text-red-600 hover:text-red-800"
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
+                                {editingTag.imageUrl && (
+                                    <div className="mt-2">
+                                        <img
+                                            src={editingTag.imageUrl}
+                                            alt="Tag image preview"
+                                            className="w-20 h-20 object-cover rounded border"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-2 mt-6">
+                            <button
+                                onClick={() => setShowEditTagModal(false)}
+                                className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await updateTag(editingTag.id, {
+                                            name: editingTag.name,
+                                            description: editingTag.description,
+                                            imageUrl: editingTag.imageUrl
+                                        });
+                                        setShowEditTagModal(false);
+                                        setEditingTag(null);
+                                    } catch (error) {
+                                        alert('Failed to update tag');
+                                    }
+                                }}
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                                Update Tag
                             </button>
                         </div>
                     </div>
@@ -1356,7 +1576,22 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onUploadI
 }
 
 // Tags Tab Component
-function TagsTab({ tags, newTag, showNewTagForm, onSetNewTag, onSetShowNewTagForm, onCreateTag, onOpenAssociateModal }: {
+function TagsTab({
+    tags,
+    newTag,
+    showNewTagForm,
+    onSetNewTag,
+    onSetShowNewTagForm,
+    onCreateTag,
+    onOpenAssociateModal,
+    onUpdateTag,
+    onDeleteTag,
+    onUploadImage,
+    editingTag,
+    showEditTagModal,
+    onSetEditingTag,
+    onSetShowEditTagModal
+}: {
     tags: Tag[];
     newTag: { name: string; description: string };
     showNewTagForm: boolean;
@@ -1364,6 +1599,13 @@ function TagsTab({ tags, newTag, showNewTagForm, onSetNewTag, onSetShowNewTagFor
     onSetShowNewTagForm: (show: boolean) => void;
     onCreateTag: () => void;
     onOpenAssociateModal: (tag: Tag) => void;
+    onUpdateTag: (tagId: number, tagData: Partial<Tag>) => void;
+    onDeleteTag: (tagId: number) => void;
+    onUploadImage: (file: File) => Promise<string>;
+    editingTag: Tag | null;
+    showEditTagModal: boolean;
+    onSetEditingTag: (tag: Tag | null) => void;
+    onSetShowEditTagModal: (show: boolean) => void;
 }) {
     return (
         <div>
@@ -1430,6 +1672,9 @@ function TagsTab({ tags, newTag, showNewTagForm, onSetNewTag, onSetShowNewTagFor
                                     ID
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Image
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Name
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1453,6 +1698,19 @@ function TagsTab({ tags, newTag, showNewTagForm, onSetNewTag, onSetShowNewTagFor
                                         {tag.id}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
+                                        {tag.imageUrl ? (
+                                            <img
+                                                src={tag.imageUrl}
+                                                alt={`${tag.name} image`}
+                                                className="w-12 h-12 object-cover rounded border"
+                                            />
+                                        ) : (
+                                            <div className="w-12 h-12 bg-gray-200 rounded border flex items-center justify-center">
+                                                <span className="text-gray-500 text-xs">No image</span>
+                                            </div>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
                                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                             {tag.name}
                                         </span>
@@ -1467,12 +1725,29 @@ function TagsTab({ tags, newTag, showNewTagForm, onSetNewTag, onSetShowNewTagFor
                                         {new Date(tag.created_at).toLocaleDateString()}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button
-                                            onClick={() => onOpenAssociateModal(tag)}
-                                            className="text-blue-600 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded border border-blue-200"
-                                        >
-                                            Associate
-                                        </button>
+                                        <div className="flex space-x-2">
+                                            <button
+                                                onClick={() => {
+                                                    onSetEditingTag(tag);
+                                                    onSetShowEditTagModal(true);
+                                                }}
+                                                className="text-blue-600 hover:text-blue-900"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => onDeleteTag(tag.id)}
+                                                className="text-red-600 hover:text-red-900"
+                                            >
+                                                Delete
+                                            </button>
+                                            <button
+                                                onClick={() => onOpenAssociateModal(tag)}
+                                                className="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1 rounded border border-green-200"
+                                            >
+                                                Associate
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -1493,7 +1768,8 @@ function BlogsTab({
     onSetEditingBlog,
     onCreateBlog,
     onUpdateBlog,
-    onDeleteBlog
+    onDeleteBlog,
+    onUploadImage
 }: {
     blogs: Blog[];
     showNewBlogForm: boolean;
@@ -1503,6 +1779,7 @@ function BlogsTab({
     onCreateBlog: (blogData: any) => void;
     onUpdateBlog: (blogId: number, blogData: Partial<Blog>) => void;
     onDeleteBlog: (blogId: number) => void;
+    onUploadImage: (file: File) => Promise<string>;
 }) {
     const [newBlog, setNewBlog] = React.useState({
         title: '',
@@ -1645,15 +1922,43 @@ function BlogsTab({
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Thumbnail URL
+                                    Thumbnail Image
                                 </label>
-                                <input
-                                    type="text"
-                                    value={newBlog.thumbnail}
-                                    onChange={(e) => setNewBlog(prev => ({ ...prev, thumbnail: e.target.value }))}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                                    placeholder="Enter thumbnail URL (optional)"
-                                />
+                                <div className="flex items-center space-x-2">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                try {
+                                                    const imageUrl = await onUploadImage(file);
+                                                    setNewBlog(prev => ({ ...prev, thumbnail: imageUrl }));
+                                                } catch (error) {
+                                                    alert('Failed to upload thumbnail image');
+                                                }
+                                            }
+                                        }}
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    />
+                                    {newBlog.thumbnail && (
+                                        <button
+                                            onClick={() => setNewBlog(prev => ({ ...prev, thumbnail: '' }))}
+                                            className="px-2 py-2 text-red-600 hover:text-red-800"
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
+                                {newBlog.thumbnail && (
+                                    <div className="mt-2">
+                                        <img
+                                            src={newBlog.thumbnail}
+                                            alt="Thumbnail preview"
+                                            className="w-20 h-20 object-cover rounded border"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -1721,15 +2026,43 @@ function BlogsTab({
 
                                         <div className="md:col-span-2">
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Image URL
+                                                Image
                                             </label>
-                                            <input
-                                                type="text"
-                                                value={content.image || ''}
-                                                onChange={(e) => updateContent(index, 'image', e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                                                placeholder="Enter image URL (optional)"
-                                            />
+                                            <div className="flex items-center space-x-2">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={async (e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            try {
+                                                                const imageUrl = await onUploadImage(file);
+                                                                updateContent(index, 'image', imageUrl);
+                                                            } catch (error) {
+                                                                alert('Failed to upload image');
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                                />
+                                                {content.image && (
+                                                    <button
+                                                        onClick={() => updateContent(index, 'image', '')}
+                                                        className="px-2 py-2 text-red-600 hover:text-red-800"
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {content.image && (
+                                                <div className="mt-2">
+                                                    <img
+                                                        src={content.image}
+                                                        alt="Content image preview"
+                                                        className="w-32 h-24 object-cover rounded border"
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -1830,6 +2163,8 @@ function BlogsTab({
                 </div>
             </div>
 
+
+
             {/* Edit Blog Modal */}
             {editingBlog && editingBlogData && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1859,14 +2194,43 @@ function BlogsTab({
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Thumbnail URL
+                                    Thumbnail Image
                                 </label>
-                                <input
-                                    type="text"
-                                    value={editingBlogData.thumbnail || ''}
-                                    onChange={(e) => setEditingBlogData(prev => prev ? { ...prev, thumbnail: e.target.value } : null)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                                />
+                                <div className="flex items-center space-x-2">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                try {
+                                                    const imageUrl = await onUploadImage(file);
+                                                    setEditingBlogData(prev => prev ? { ...prev, thumbnail: imageUrl } : null);
+                                                } catch (error) {
+                                                    alert('Failed to upload thumbnail image');
+                                                }
+                                            }
+                                        }}
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    />
+                                    {editingBlogData.thumbnail && (
+                                        <button
+                                            onClick={() => setEditingBlogData(prev => prev ? { ...prev, thumbnail: '' } : null)}
+                                            className="px-2 py-2 text-red-600 hover:text-red-800"
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
+                                {editingBlogData.thumbnail && (
+                                    <div className="mt-2">
+                                        <img
+                                            src={editingBlogData.thumbnail}
+                                            alt="Thumbnail preview"
+                                            className="w-20 h-20 object-cover rounded border"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -1933,15 +2297,43 @@ function BlogsTab({
                                         </div>
                                         <div className="md:col-span-2">
                                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Image URL
+                                                Image
                                             </label>
-                                            <input
-                                                type="text"
-                                                value={content.image || ''}
-                                                onChange={(e) => updateEditContent(index, 'image', e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
-                                                placeholder="Enter image URL (optional)"
-                                            />
+                                            <div className="flex items-center space-x-2">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={async (e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            try {
+                                                                const imageUrl = await onUploadImage(file);
+                                                                updateEditContent(index, 'image', imageUrl);
+                                                            } catch (error) {
+                                                                alert('Failed to upload image');
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                                />
+                                                {content.image && (
+                                                    <button
+                                                        onClick={() => updateEditContent(index, 'image', '')}
+                                                        className="px-2 py-2 text-red-600 hover:text-red-800"
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {content.image && (
+                                                <div className="mt-2">
+                                                    <img
+                                                        src={content.image}
+                                                        alt="Content image preview"
+                                                        className="w-32 h-24 object-cover rounded border"
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

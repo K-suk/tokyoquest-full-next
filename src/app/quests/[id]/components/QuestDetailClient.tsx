@@ -302,13 +302,23 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
             {/* 2. メインコンテンツ（静的メタデータ部分） */}
             <div className="px-4 md:px-8 lg:px-12 mt-6">
                 <div className="mb-4">
-                    <Image
-                        src={"/images/tokyonight.webp"}
-                        alt="Quest Hero"
-                        width={400}
-                        height={200}
-                        className="w-full h-48 md:h-64 object-cover rounded-lg"
-                    />
+                    {questMeta.imgUrl ? (
+                        <Image
+                            src={questMeta.imgUrl}
+                            alt={`${questMeta.title} - Quest Image`}
+                            width={400}
+                            height={200}
+                            className="w-full h-48 md:h-64 object-cover rounded-lg"
+                        />
+                    ) : (
+                        <Image
+                            src={"/images/tokyonight.webp"}
+                            alt="Quest Hero"
+                            width={400}
+                            height={200}
+                            className="w-full h-48 md:h-64 object-cover rounded-lg"
+                        />
+                    )}
                 </div>
                 <h1 className="text-xl font-bold mb-3">{questMeta.title}</h1>
                 <div className="mb-4 space-y-2">

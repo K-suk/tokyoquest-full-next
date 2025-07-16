@@ -13,7 +13,6 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
-// セキュリティヘッダー
 
 // ブラウザのキャッシュを無効化
 export const metadata = {
@@ -22,17 +21,6 @@ export const metadata = {
   'Expires': '0',
 };
 
-// Sample categories with icons
-const categories = [
-  { id: 1, name: "nightlife", displayName: "Night Life", icon: "/images/categories/night_life_category.png" },
-  { id: 2, name: "shibuya", displayName: "Shibuya", icon: "/images/categories/Shibuya_area_category.png" },
-  { id: 3, name: "shinjuku", displayName: "Shinjuku", icon: "/images/categories/Shinjuku_area_category.png" },
-  { id: 4, name: "food", displayName: "Food", icon: "/images/categories/food_category.png" },
-  { id: 5, name: "anime", displayName: "Akihabara", icon: "/images/categories/anime_category.png" },
-  { id: 6, name: "family", displayName: "Family", icon: "/images/categories/family_category.png" },
-  { id: 7, name: "alcohol", displayName: "Bar", icon: "/images/categories/alcohol_category.png" },
-  { id: 8, name: "asakusa", displayName: "Asakusa", icon: "/images/categories/asakusa_category.png" },
-];
 
 export default async function HomePage() {
   // 1) サーバーセッションをチェック（セッション情報は露出させない）
@@ -54,7 +42,7 @@ export default async function HomePage() {
   }
 
   // 3) 並列でデータを取得（パフォーマンス向上）
-  const [quests, savedQuests] = await Promise.all([
+  const [quests, savedQuests, tags] = await Promise.all([
     // Prismaからクエスト一覧を取得
     prisma.quest.findMany({
       orderBy: { date_created: "desc" },
@@ -76,6 +64,20 @@ export default async function HomePage() {
         quest_id: true,
       },
     }),
+    // タグ一覧を取得（クエスト数でソート、最大8個）
+    prisma.tag.findMany({
+      include: {
+        _count: {
+          select: { quests: true },
+        },
+      },
+      orderBy: {
+        quests: {
+          _count: "desc",
+        },
+      },
+      take: 8,
+    }),
   ]);
 
   // 4) DTOに変換してClient Componentに渡す（セキュリティ強化）
@@ -85,28 +87,44 @@ export default async function HomePage() {
   return (
     <main className="pb-6">
       {/* Famous Categories */}
-      <section className="px-4 py-6">
+      <section className="px-4 py-6 relative">
         <h2 className="text-2xl font-bold mb-4">Famous Categories</h2>
         <div className="grid grid-cols-4 gap-4">
-          {categories.map((cat) => (
+          {tags.map((tag) => (
             <Link
-              key={cat.id}
-              href={`/category/${cat.name}`}
+              key={tag.id}
+              href={`/category/${tag.id}`}
               className="flex flex-col items-center"
             >
               <div className="w-16 h-16 relative mb-1">
-                <Image
-                  src={cat.icon}
-                  alt={cat.displayName}
-                  fill
-                  className="object-cover rounded-md"
-                />
+                {tag.imageUrl ? (
+                  <Image
+                    src={tag.imageUrl}
+                    alt={tag.name}
+                    fill
+                    className="object-cover rounded-md"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
+                    <span className="text-gray-500 text-xs">No image</span>
+                  </div>
+                )}
               </div>
-              <span className="text-sm text-center">{cat.displayName}</span>
+              <span className="text-sm text-center">{tag.name}</span>
+              <span className="text-xs text-gray-500">{tag._count.quests} quests</span>
             </Link>
           ))}
         </div>
+        <div className="text-right">
+          <Link
+            href="/category"
+            className="text-sm text-blue-600 hover:text-blue-800 underline"
+          >
+            Check All Tags
+          </Link>
+        </div>
       </section>
+
 
       {/* All Quests */}
       <section className="px-4 mt-8">
