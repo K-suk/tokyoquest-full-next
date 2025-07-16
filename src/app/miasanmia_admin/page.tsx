@@ -109,6 +109,7 @@ export default function AdminPage() {
 
     // Tag search state
     const [tagSearch, setTagSearch] = useState('');
+    const [selectAllTags, setSelectAllTags] = useState(false);
 
     // Shared state
     const [loading, setLoading] = useState(true);
@@ -333,6 +334,7 @@ export default function AdminPage() {
         setEditingQuest(quest);
         setSelectedTagIds(quest.tags.map(t => t.id));
         setTagSearch(''); // Reset search when opening modal
+        setSelectAllTags(false); // Reset select all state
         setShowTagModal(true);
     };
 
@@ -345,6 +347,21 @@ export default function AdminPage() {
         );
     };
 
+    // 全選択/全解除
+    const toggleAllTags = () => {
+        const filteredTags = tags.filter(tag =>
+            tag.name.toLowerCase().includes(tagSearch.toLowerCase()) ||
+            (tag.description && tag.description.toLowerCase().includes(tagSearch.toLowerCase()))
+        );
+
+        if (selectedTagIds.length === filteredTags.length) {
+            setSelectedTagIds([]);
+        } else {
+            const filteredTagIds = filteredTags.map(tag => tag.id);
+            setSelectedTagIds(filteredTagIds);
+        }
+    };
+
     // Tag編集を保存
     const saveTagSelection = async () => {
         if (!editingQuest) return;
@@ -355,6 +372,7 @@ export default function AdminPage() {
             setEditingQuest(null);
             setSelectedTagIds([]);
             setTagSearch(''); // Reset search when saving
+            setSelectAllTags(false); // Reset select all state
         } catch (error) {
             console.error('Error saving tag selection:', error);
         }
@@ -728,6 +746,7 @@ export default function AdminPage() {
                                 onClick={() => {
                                     setShowTagModal(false);
                                     setTagSearch(''); // Reset search when closing modal
+                                    setSelectAllTags(false); // Reset select all state
                                 }}
                                 className="text-gray-500 hover:text-gray-700 text-2xl"
                             >
@@ -749,6 +768,27 @@ export default function AdminPage() {
                                     placeholder="Search tags by name..."
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                                 />
+                            </div>
+
+                            {/* Select All Button */}
+                            <div className="mb-4">
+                                <button
+                                    onClick={toggleAllTags}
+                                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                                >
+                                    {(() => {
+                                        const filteredTags = tags.filter(tag =>
+                                            tag.name.toLowerCase().includes(tagSearch.toLowerCase()) ||
+                                            (tag.description && tag.description.toLowerCase().includes(tagSearch.toLowerCase()))
+                                        );
+                                        const selectedFilteredTags = selectedTagIds.filter(id =>
+                                            filteredTags.some(tag => tag.id === id)
+                                        );
+                                        return selectedFilteredTags.length === filteredTags.length && filteredTags.length > 0
+                                            ? 'Deselect All'
+                                            : 'Select All';
+                                    })()}
+                                </button>
                             </div>
 
                             <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg p-4">
@@ -796,6 +836,7 @@ export default function AdminPage() {
                                 onClick={() => {
                                     setShowTagModal(false);
                                     setTagSearch(''); // Reset search when closing modal
+                                    setSelectAllTags(false); // Reset select all state
                                 }}
                                 className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
                             >
