@@ -38,7 +38,27 @@ interface Tag {
     questCount: number;
 }
 
-type TabType = 'completions' | 'quests' | 'tags';
+interface Blog {
+    id: number;
+    title: string;
+    thumbnail: string | null;
+    created_at: string;
+    updated_at: string;
+    is_published: boolean;
+    contents: BlogContent[];
+}
+
+interface BlogContent {
+    id: number;
+    blog_id: number;
+    subtitle: string | null;
+    content: string | null;
+    image: string | null;
+    order: number;
+    created_at: string;
+}
+
+type TabType = 'completions' | 'quests' | 'tags' | 'blogs';
 
 export default function AdminPage() {
     const [activeTab, setActiveTab] = useState<TabType>('completions');
@@ -64,6 +84,11 @@ export default function AdminPage() {
     const [tags, setTags] = useState<Tag[]>([]);
     const [newTag, setNewTag] = useState({ name: '', description: '' });
     const [showNewTagForm, setShowNewTagForm] = useState(false);
+
+    // Blogs state
+    const [blogs, setBlogs] = useState<Blog[]>([]);
+    const [showNewBlogForm, setShowNewBlogForm] = useState(false);
+    const [editingBlog, setEditingBlog] = useState<Blog | null>(null);
 
     // Tag editing state
     const [editingQuest, setEditingQuest] = useState<Quest | null>(null);
@@ -168,6 +193,32 @@ export default function AdminPage() {
         }
     }, []);
 
+    const fetchBlogs = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const response = await fetch('/api/miasanmia_admin/blogs');
+
+            if (!response.ok) {
+                if (response.status === 403) {
+                    setError('Access denied. Staff privileges required.');
+                } else {
+                    setError('Failed to fetch blogs');
+                }
+                return;
+            }
+
+            const data = await response.json();
+            setBlogs(data);
+        } catch (error) {
+            console.error('Error fetching blogs:', error);
+            setError('An error occurred while fetching data');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
     // タブ切り替え時のデータ取得
     useEffect(() => {
         if (activeTab === 'completions') {
@@ -176,8 +227,10 @@ export default function AdminPage() {
             fetchQuests();
         } else if (activeTab === 'tags') {
             fetchTags();
+        } else if (activeTab === 'blogs') {
+            fetchBlogs();
         }
-    }, [activeTab, completionFilters, questFilters, fetchCompletions, fetchQuests, fetchTags]);
+    }, [activeTab, completionFilters, questFilters, fetchCompletions, fetchQuests, fetchTags, fetchBlogs]);
 
     // 画像ダウンロード
     const downloadImage = (imageData: string, filename: string) => {
@@ -286,6 +339,73 @@ export default function AdminPage() {
         }
     };
 
+    // Blog management functions
+    const createBlog = async (blogData: Omit<Blog, 'id' | 'created_at' | 'updated_at'>) => {
+        try {
+            const response = await fetch('/api/miasanmia_admin/blogs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(blogData),
+            });
+
+            if (!response.ok) {
+                setError('Failed to create blog');
+                return;
+            }
+
+            setShowNewBlogForm(false);
+            fetchBlogs();
+        } catch (error) {
+            console.error('Error creating blog:', error);
+            setError('An error occurred while creating blog');
+        }
+    };
+
+    const updateBlog = async (blogId: number, blogData: Partial<Blog>) => {
+        try {
+            const response = await fetch(`/api/miasanmia_admin/blogs/${blogId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(blogData),
+            });
+
+            if (!response.ok) {
+                setError('Failed to update blog');
+                return;
+            }
+
+            setEditingBlog(null);
+            fetchBlogs();
+        } catch (error) {
+            console.error('Error updating blog:', error);
+            setError('An error occurred while updating blog');
+        }
+    };
+
+    const deleteBlog = async (blogId: number) => {
+        if (!confirm('Are you sure you want to delete this blog?')) return;
+
+        try {
+            const response = await fetch(`/api/miasanmia_admin/blogs/${blogId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                setError('Failed to delete blog');
+                return;
+            }
+
+            fetchBlogs();
+        } catch (error) {
+            console.error('Error deleting blog:', error);
+            setError('An error occurred while deleting blog');
+        }
+    };
+
     if (error) {
         return (
             <div className="min-h-screen bg-gray-50 p-8">
@@ -344,6 +464,15 @@ export default function AdminPage() {
                             >
                                 Tag Management
                             </button>
+                            <button
+                                onClick={() => setActiveTab('blogs')}
+                                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'blogs'
+                                    ? 'border-red-500 text-red-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                            >
+                                Blog Management
+                            </button>
                         </nav>
                     </div>
                 </div>
@@ -388,6 +517,20 @@ export default function AdminPage() {
                                 onSetNewTag={setNewTag}
                                 onSetShowNewTagForm={setShowNewTagForm}
                                 onCreateTag={createTag}
+                            />
+                        )}
+
+                        {/* Blogs Tab */}
+                        {activeTab === 'blogs' && (
+                            <BlogsTab
+                                blogs={blogs}
+                                showNewBlogForm={showNewBlogForm}
+                                editingBlog={editingBlog}
+                                onSetShowNewBlogForm={setShowNewBlogForm}
+                                onSetEditingBlog={setEditingBlog}
+                                onCreateBlog={createBlog}
+                                onUpdateBlog={updateBlog}
+                                onDeleteBlog={deleteBlog}
                             />
                         )}
                     </>
@@ -890,6 +1033,491 @@ function TagsTab({ tags, newTag, showNewTagForm, onSetNewTag, onSetShowNewTagFor
                     </table>
                 </div>
             </div>
+        </div>
+    );
+}
+
+// Blogs Tab Component
+function BlogsTab({
+    blogs,
+    showNewBlogForm,
+    editingBlog,
+    onSetShowNewBlogForm,
+    onSetEditingBlog,
+    onCreateBlog,
+    onUpdateBlog,
+    onDeleteBlog
+}: {
+    blogs: Blog[];
+    showNewBlogForm: boolean;
+    editingBlog: Blog | null;
+    onSetShowNewBlogForm: (show: boolean) => void;
+    onSetEditingBlog: (blog: Blog | null) => void;
+    onCreateBlog: (blogData: any) => void;
+    onUpdateBlog: (blogId: number, blogData: Partial<Blog>) => void;
+    onDeleteBlog: (blogId: number) => void;
+}) {
+    const [newBlog, setNewBlog] = React.useState({
+        title: '',
+        thumbnail: '',
+        is_published: false,
+        contents: [] as Array<{
+            subtitle?: string;
+            content?: string;
+            image?: string;
+            order: number;
+        }>
+    });
+
+    const [editingBlogData, setEditingBlogData] = React.useState<Blog | null>(null);
+
+    // 編集用のコンテンツ型（id, blog_id, created_atは不要）
+    type EditContent = {
+        subtitle?: string;
+        content?: string;
+        image?: string;
+        order: number;
+    };
+
+    const addContent = () => {
+        const newContent = {
+            subtitle: '',
+            content: '',
+            image: '',
+            order: newBlog.contents.length
+        };
+        setNewBlog(prev => ({
+            ...prev,
+            contents: [...prev.contents, newContent]
+        }));
+    };
+
+    const updateContent = (index: number, field: string, value: string) => {
+        setNewBlog(prev => ({
+            ...prev,
+            contents: prev.contents.map((content, i) =>
+                i === index ? { ...content, [field]: value } : content
+            )
+        }));
+    };
+
+    const removeContent = (index: number) => {
+        setNewBlog(prev => ({
+            ...prev,
+            contents: prev.contents.filter((_, i) => i !== index)
+        }));
+    };
+
+    const handleCreateBlog = () => {
+        onCreateBlog(newBlog);
+        setNewBlog({
+            title: '',
+            thumbnail: '',
+            is_published: false,
+            contents: []
+        });
+    };
+
+    const handleEditBlog = (blog: Blog) => {
+        setEditingBlogData(blog);
+        onSetEditingBlog(blog);
+    };
+
+    const addEditContent = () => {
+        if (!editingBlogData) return;
+        const newContent = {
+            subtitle: '',
+            content: '',
+            image: '',
+            order: editingBlogData.contents.length
+        };
+        setEditingBlogData(prev => prev ? {
+            ...prev,
+            contents: [...prev.contents, newContent as any]
+        } : null);
+    };
+
+    const updateEditContent = (index: number, field: string, value: string) => {
+        if (!editingBlogData) return;
+        setEditingBlogData(prev => prev ? {
+            ...prev,
+            contents: prev.contents.map((content, i) =>
+                i === index ? { ...content, [field]: value } : content
+            )
+        } : null);
+    };
+
+    const removeEditContent = (index: number) => {
+        if (!editingBlogData) return;
+        setEditingBlogData(prev => prev ? {
+            ...prev,
+            contents: prev.contents.filter((_, i) => i !== index)
+        } : null);
+    };
+
+    const handleUpdateBlog = () => {
+        if (!editingBlogData) return;
+        onUpdateBlog(editingBlogData.id, editingBlogData);
+        setEditingBlogData(null);
+    };
+
+    const handleCancelEdit = () => {
+        setEditingBlogData(null);
+        onSetEditingBlog(null);
+    };
+
+    return (
+        <div>
+            {/* Blog Management Header */}
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold">Blog Management</h2>
+                    <button
+                        onClick={() => onSetShowNewBlogForm(!showNewBlogForm)}
+                        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                    >
+                        {showNewBlogForm ? 'Cancel' : 'Add New Blog'}
+                    </button>
+                </div>
+
+                {/* New Blog Form */}
+                {showNewBlogForm && (
+                    <div className="border-t pt-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Title
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newBlog.title}
+                                    onChange={(e) => setNewBlog(prev => ({ ...prev, title: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    placeholder="Enter blog title"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Thumbnail URL
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newBlog.thumbnail}
+                                    onChange={(e) => setNewBlog(prev => ({ ...prev, thumbnail: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    placeholder="Enter thumbnail URL (optional)"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="flex items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={newBlog.is_published}
+                                    onChange={(e) => setNewBlog(prev => ({ ...prev, is_published: e.target.checked }))}
+                                    className="mr-2"
+                                />
+                                <span className="text-sm font-medium text-gray-700">Published</span>
+                            </label>
+                        </div>
+
+                        {/* Content Sections */}
+                        <div className="mb-4">
+                            <div className="flex justify-between items-center mb-2">
+                                <h3 className="text-md font-medium">Content Sections</h3>
+                                <button
+                                    onClick={addContent}
+                                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                                >
+                                    Add Section
+                                </button>
+                            </div>
+
+                            {newBlog.contents.map((content, index) => (
+                                <div key={index} className="border border-gray-200 rounded p-4 mb-4">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h4 className="text-sm font-medium">Section {index + 1}</h4>
+                                        <button
+                                            onClick={() => removeContent(index)}
+                                            className="text-red-600 hover:text-red-800 text-sm"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Subtitle
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={content.subtitle || ''}
+                                                onChange={(e) => updateContent(index, 'subtitle', e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                                placeholder="Enter subtitle"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Content
+                                            </label>
+                                            <textarea
+                                                value={content.content || ''}
+                                                onChange={(e) => updateContent(index, 'content', e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                                placeholder="Enter content"
+                                                rows={3}
+                                            />
+                                        </div>
+
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Image URL
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={content.image || ''}
+                                                onChange={(e) => updateContent(index, 'image', e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                                placeholder="Enter image URL (optional)"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-4">
+                            <button
+                                onClick={handleCreateBlog}
+                                disabled={!newBlog.title.trim()}
+                                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Create Blog
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Blog List */}
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    ID
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Title
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Status
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Content Sections
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Created
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {blogs.map((blog) => (
+                                <tr key={blog.id} className="hover:bg-gray-50">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {blog.id}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div>
+                                            <div className="text-sm font-medium text-gray-900">
+                                                {blog.title}
+                                            </div>
+                                            {blog.thumbnail && (
+                                                <div className="text-sm text-gray-500">
+                                                    Has thumbnail
+                                                </div>
+                                            )}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${blog.is_published
+                                            ? 'bg-green-100 text-green-800'
+                                            : 'bg-yellow-100 text-yellow-800'
+                                            }`}>
+                                            {blog.is_published ? 'Published' : 'Draft'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {blog.contents.length} sections
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        {new Date(blog.created_at).toLocaleDateString()}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div className="flex space-x-2">
+                                            <button
+                                                onClick={() => handleEditBlog(blog)}
+                                                className="text-blue-600 hover:text-blue-900"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => onDeleteBlog(blog.id)}
+                                                className="text-red-600 hover:text-red-900"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Edit Blog Modal */}
+            {editingBlog && editingBlogData && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black bg-opacity-50" onClick={handleCancelEdit} />
+                    <div className="relative bg-white p-6 rounded-lg max-w-6xl max-h-[90vh] overflow-auto">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold">Edit Blog: {editingBlogData.title}</h3>
+                            <button
+                                onClick={handleCancelEdit}
+                                className="text-gray-500 hover:text-gray-700 text-2xl"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Title
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editingBlogData.title}
+                                    onChange={(e) => setEditingBlogData(prev => prev ? { ...prev, title: e.target.value } : null)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Thumbnail URL
+                                </label>
+                                <input
+                                    type="text"
+                                    value={editingBlogData.thumbnail || ''}
+                                    onChange={(e) => setEditingBlogData(prev => prev ? { ...prev, thumbnail: e.target.value } : null)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <label className="flex items-center">
+                                <input
+                                    type="checkbox"
+                                    checked={editingBlogData.is_published}
+                                    onChange={(e) => setEditingBlogData(prev => prev ? { ...prev, is_published: e.target.checked } : null)}
+                                    className="mr-2"
+                                />
+                                <span className="text-sm font-medium text-gray-700">Published</span>
+                            </label>
+                        </div>
+
+                        {/* Content Sections */}
+                        <div className="mb-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="text-md font-medium">Content Sections</h4>
+                                <button
+                                    onClick={addEditContent}
+                                    className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+                                >
+                                    Add Section
+                                </button>
+                            </div>
+
+                            {editingBlogData.contents.map((content, index) => (
+                                <div key={index} className="border border-gray-200 rounded p-4 mb-4">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <h5 className="text-sm font-medium">Section {index + 1}</h5>
+                                        <button
+                                            onClick={() => removeEditContent(index)}
+                                            className="text-red-600 hover:text-red-800 text-sm"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Subtitle
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={content.subtitle || ''}
+                                                onChange={(e) => updateEditContent(index, 'subtitle', e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                                placeholder="Enter subtitle"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Content
+                                            </label>
+                                            <textarea
+                                                value={content.content || ''}
+                                                onChange={(e) => updateEditContent(index, 'content', e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                                placeholder="Enter content"
+                                                rows={3}
+                                            />
+                                        </div>
+                                        <div className="md:col-span-2">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Image URL
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={content.image || ''}
+                                                onChange={(e) => updateEditContent(index, 'image', e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                                placeholder="Enter image URL (optional)"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="flex justify-end space-x-2">
+                            <button
+                                onClick={handleCancelEdit}
+                                className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleUpdateBlog}
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            >
+                                Update Blog
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 } 

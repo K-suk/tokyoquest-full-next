@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       "images.unsplash.com",
       "unsplash.com",
       "plus.unsplash.com",
+      "photos.app.goo.gl",
     ],
     remotePatterns: [
       {
@@ -42,6 +43,12 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "photos.app.goo.gl",
+        port: "",
+        pathname: "/**",
+      },
     ],
     // 開発時のみ最適化をオフ
     unoptimized: process.env.NODE_ENV === "development",
@@ -72,8 +79,8 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self'",
               "style-src 'self' 'unsafe-inline'",
-              // 画像は picsum.photos と Unsplash を許可
-              "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com",
+              // 画像は picsum.photos と Unsplash と Google Photos を許可
+              "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com https://photos.app.goo.gl",
               "font-src 'self' data:",
               "connect-src 'self' https:",
               "frame-ancestors 'none'",

@@ -78,6 +78,15 @@ const Navbar = () => {
                                 </Link>
                             </li>
                             <li>
+                                <Link
+                                    href="/blog"
+                                    onClick={() => setOpen(false)}
+                                    className="text-2xl hover:opacity-80 transition-opacity duration-200 block"
+                                >
+                                    Blog
+                                </Link>
+                            </li>
+                            <li>
                                 <button
                                     onClick={handleSignOut}
                                     className="text-2xl hover:opacity-80 transition-opacity duration-200"
