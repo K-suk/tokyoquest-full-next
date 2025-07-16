@@ -406,6 +406,36 @@ export default function AdminPage() {
         }
     };
 
+    // Quest画像アップロード
+    const uploadQuestImage = async (questId: number, file: File) => {
+        try {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const response = await fetch(`/api/miasanmia_admin/quests/${questId}/image`, {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to upload image');
+            }
+
+            const data = await response.json();
+            alert('Image uploaded successfully!');
+
+            // Quest一覧を更新
+            await fetchQuests();
+
+            return data.imageUrl;
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            alert(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw error;
+        }
+    };
+
     if (error) {
         return (
             <div className="min-h-screen bg-gray-50 p-8">
@@ -505,6 +535,7 @@ export default function AdminPage() {
                                 filters={questFilters}
                                 onUpdateFilters={updateQuestFilters}
                                 onOpenTagModal={openTagModal}
+                                onUploadImage={uploadQuestImage}
                             />
                         )}
 
@@ -803,11 +834,12 @@ function CompletionsTab({ completions, filters, onUpdateFilters, onDownloadImage
 }
 
 // Quests Tab Component
-function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal }: {
+function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onUploadImage }: {
     quests: Quest[];
     filters: { page: number; limit: number; search: string };
     onUpdateFilters: (filters: Partial<{ page: number; limit: number; search: string }>) => void;
     onOpenTagModal: (quest: Quest) => void;
+    onUploadImage: (questId: number, file: File) => Promise<string>;
 }) {
     return (
         <div>
@@ -864,6 +896,9 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal }: {
                                     Tags
                                 </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Image
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Actions
                                 </th>
                             </tr>
@@ -902,13 +937,71 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal }: {
                                             )}
                                         </div>
                                     </td>
+                                    <td className="px-6 py-4">
+                                        {quest.imgUrl ? (
+                                            <div className="w-16 h-16 relative bg-gray-200 rounded overflow-hidden">
+                                                <Image
+                                                    src={quest.imgUrl}
+                                                    alt={quest.title}
+                                                    fill
+                                                    className="object-cover"
+                                                />
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className="w-16 h-16 border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-xs text-center"
+                                                onDrop={(e) => {
+                                                    e.preventDefault();
+                                                    const file = e.dataTransfer.files[0];
+                                                    if (file && file.type.startsWith('image/')) {
+                                                        onUploadImage(quest.id, file);
+                                                    }
+                                                }}
+                                                onDragOver={(e) => e.preventDefault()}
+                                                onDragEnter={(e) => e.preventDefault()}
+                                            >
+                                                Drop image here
+                                            </div>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <button
-                                            onClick={() => onOpenTagModal(quest)}
-                                            className="text-blue-600 hover:text-blue-900"
-                                        >
-                                            Edit Tags
-                                        </button>
+                                        <div className="flex flex-col space-y-2">
+                                            <button
+                                                onClick={() => onOpenTagModal(quest)}
+                                                className="text-blue-600 hover:text-blue-900"
+                                            >
+                                                Edit Tags
+                                            </button>
+                                            <div className="flex items-center space-x-2">
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    onChange={(e) => {
+                                                        const file = e.target.files?.[0];
+                                                        if (file) {
+                                                            onUploadImage(quest.id, file);
+                                                            e.target.value = ''; // リセット
+                                                        }
+                                                    }}
+                                                    className="hidden"
+                                                    id={`image-upload-${quest.id}`}
+                                                />
+                                                <label
+                                                    htmlFor={`image-upload-${quest.id}`}
+                                                    className="cursor-pointer text-green-600 hover:text-green-900 text-sm border-2 border-dashed border-green-300 px-2 py-1 rounded hover:border-green-500 transition-colors"
+                                                >
+                                                    📷 Upload Image
+                                                </label>
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1">
+                                                Drag & drop or click to upload
+                                            </div>
+                                            {quest.imgUrl && (
+                                                <div className="text-xs text-gray-500">
+                                                    Has image: {quest.imgUrl.split('/').pop()}
+                                                </div>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

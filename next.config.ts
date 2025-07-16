@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // 開発環境でのセキュリティルール緩和
+  ...(process.env.NODE_ENV === "development" && {
+    experimental: {
+      esmExternals: false,
+    },
+  }),
   images: {
     // 既存のドメインに加え、ピクセル指定パスのみを許可
     domains: [
@@ -10,6 +16,7 @@ const nextConfig: NextConfig = {
       "unsplash.com",
       "plus.unsplash.com",
       "photos.app.goo.gl",
+      "photos.fife.usercontent.google.com",
     ],
     remotePatterns: [
       {
@@ -49,6 +56,12 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "photos.fife.usercontent.google.com",
+        port: "",
+        pathname: "/**",
+      },
     ],
     // 開発時のみ最適化をオフ
     unoptimized: process.env.NODE_ENV === "development",
@@ -77,16 +90,16 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self'",
+              "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
               // 画像は picsum.photos と Unsplash と Google Photos を許可
-              "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com https://photos.app.goo.gl",
+              "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com https://photos.app.goo.gl https://photos.fife.usercontent.google.com",
               "font-src 'self' data:",
               "connect-src 'self' https:",
               "frame-ancestors 'none'",
               "object-src 'none'",
               "base-uri 'self'",
-              "form-action 'self'",
+              "form-action 'self' /api/miasanmia_admin/quests/*/image",
             ].join("; "),
           },
         ],
@@ -107,6 +120,39 @@ const nextConfig: NextConfig = {
             value: "Content-Type, Authorization",
           },
           { key: "Access-Control-Allow-Credentials", value: "true" },
+        ],
+      },
+      {
+        source: "/api/miasanmia_admin/quests/(.*)/image",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: https:",
+              "font-src 'self' data:",
+              "connect-src 'self' https:",
+              "form-action 'self'",
+            ].join("; "),
+          },
+        ],
+      },
+      {
+        source: "/uploads/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self'",
+              "style-src 'self'",
+              "img-src 'self' data:",
+              "font-src 'self' data:",
+              "connect-src 'self'",
+            ].join("; "),
+          },
         ],
       },
     ];
