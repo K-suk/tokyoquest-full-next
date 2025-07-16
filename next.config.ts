@@ -1,12 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // 開発環境でのセキュリティルール緩和
-  ...(process.env.NODE_ENV === "development" && {
-    experimental: {
-      esmExternals: false,
-    },
-  }),
   images: {
     // 既存のドメインに加え、ピクセル指定パスのみを許可
     domains: [
@@ -17,6 +11,7 @@ const nextConfig: NextConfig = {
       "plus.unsplash.com",
       "photos.app.goo.gl",
       "photos.fife.usercontent.google.com",
+      "*.supabase.co",
     ],
     remotePatterns: [
       {
@@ -62,6 +57,12 @@ const nextConfig: NextConfig = {
         port: "",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        port: "",
+        pathname: "/**",
+      },
     ],
     // 開発時のみ最適化をオフ
     unoptimized: process.env.NODE_ENV === "development",
@@ -92,8 +93,8 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
-              // 画像は picsum.photos と Unsplash と Google Photos を許可
-              "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com https://photos.app.goo.gl https://photos.fife.usercontent.google.com",
+              // 画像は picsum.photos と Unsplash と Google Photos と Supabase Storage を許可
+              "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com https://photos.app.goo.gl https://photos.fife.usercontent.google.com https://*.supabase.co",
               "font-src 'self' data:",
               "connect-src 'self' https:",
               "frame-ancestors 'none'",

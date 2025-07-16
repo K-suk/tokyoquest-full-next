@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
-import { existsSync } from "fs";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(
   request: NextRequest,
@@ -69,28 +67,40 @@ export async function POST(
     const fileExtension = file.name.split(".").pop() || "jpg";
     const fileName = `quest_${questId}_${timestamp}.${fileExtension}`;
 
-    // アップロードディレクトリを作成
-    const uploadDir = join(process.cwd(), "public", "uploads", "quests");
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    // ファイルを保存
-    const filePath = join(uploadDir, fileName);
+    // Supabase Storageにアップロード
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+
+    const { data, error } = await supabaseAdmin.storage
+      .from("quest-images")
+      .upload(fileName, buffer, {
+        contentType: file.type,
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("Supabase upload error:", error);
+      return NextResponse.json(
+        { error: "Failed to upload image to storage" },
+        { status: 500 }
+      );
+    }
+
+    // 公開URLを取得
+    const { data: urlData } = supabaseAdmin.storage
+      .from("quest-images")
+      .getPublicUrl(fileName);
 
     // データベースを更新
-    const imageUrl = `/uploads/quests/${fileName}`;
     await prisma.quest.update({
       where: { id: questId },
-      data: { imgUrl: imageUrl },
+      data: { imgUrl: urlData.publicUrl },
     });
 
     return NextResponse.json({
       success: true,
-      imageUrl: imageUrl,
+      imageUrl: urlData.publicUrl,
       message: "Image uploaded successfully",
     });
   } catch (error) {
