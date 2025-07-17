@@ -87,7 +87,7 @@ export default function AdminPage() {
 
     // Tags state
     const [tags, setTags] = useState<Tag[]>([]);
-    const [newTag, setNewTag] = useState({ name: '', description: '' });
+    const [newTag, setNewTag] = useState({ name: '', description: '', imageUrl: '' });
     const [showNewTagForm, setShowNewTagForm] = useState(false);
 
     // Blogs state
@@ -292,13 +292,18 @@ export default function AdminPage() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(newTag),
+                body: JSON.stringify({
+                    id: tags.length + 1,
+                    name: newTag.name,
+                    description: newTag.description,
+                    imageUrl: newTag.imageUrl || undefined,
+                }),
             });
 
             if (response.ok) {
                 const data = await response.json();
                 setTags(prev => [...prev, data.tag]);
-                setNewTag({ name: '', description: '' });
+                setNewTag({ name: '', description: '', imageUrl: '' });
                 setShowNewTagForm(false);
             } else {
                 const errorData = await response.json();
@@ -1593,9 +1598,9 @@ function TagsTab({
     onSetShowEditTagModal
 }: {
     tags: Tag[];
-    newTag: { name: string; description: string };
+    newTag: { name: string; description: string; imageUrl: string };
     showNewTagForm: boolean;
-    onSetNewTag: (tag: { name: string; description: string }) => void;
+    onSetNewTag: (tag: { name: string; description: string; imageUrl: string }) => void;
     onSetShowNewTagForm: (show: boolean) => void;
     onCreateTag: () => void;
     onOpenAssociateModal: (tag: Tag) => void;
@@ -1626,6 +1631,18 @@ function TagsTab({
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Tag ID (Auto-generated)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={tags.length + 1}
+                                    disabled
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600"
+                                    placeholder="Auto-generated"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Tag Name
                                 </label>
                                 <input
@@ -1647,6 +1664,46 @@ function TagsTab({
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
                                     placeholder="Enter description (optional)"
                                 />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Tag Image
+                                </label>
+                                <div className="flex items-center space-x-2">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                try {
+                                                    const imageUrl = await onUploadImage(file);
+                                                    onSetNewTag({ ...newTag, imageUrl });
+                                                } catch (error) {
+                                                    alert('Failed to upload tag image');
+                                                }
+                                            }
+                                        }}
+                                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    />
+                                    {newTag.imageUrl && (
+                                        <button
+                                            onClick={() => onSetNewTag({ ...newTag, imageUrl: '' })}
+                                            className="px-2 py-2 text-red-600 hover:text-red-800"
+                                        >
+                                            Clear
+                                        </button>
+                                    )}
+                                </div>
+                                {newTag.imageUrl && (
+                                    <div className="mt-2">
+                                        <img
+                                            src={newTag.imageUrl}
+                                            alt="Tag image preview"
+                                            className="w-20 h-20 object-cover rounded border"
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div className="mt-4">

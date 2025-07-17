@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 4) リクエストボディからデータを取得
-    const { name, description } = await request.json();
+    const { id, name, description, imageUrl } = await request.json();
 
     // 5) 入力値検証を強化
     if (!name || typeof name !== "string" || name.trim() === "") {
@@ -174,11 +174,23 @@ export async function POST(request: NextRequest) {
     }
 
     // 7) 新しいtagを作成
+    const tagData: any = {
+      name: trimmedName,
+      description: sanitizedDescription,
+    };
+
+    // IDが指定されている場合は追加
+    if (id && typeof id === "number") {
+      tagData.id = id;
+    }
+
+    // imageUrlが指定されている場合は追加
+    if (imageUrl && typeof imageUrl === "string") {
+      tagData.imageUrl = imageUrl;
+    }
+
     const tag = await prisma.tag.create({
-      data: {
-        name: trimmedName,
-        description: sanitizedDescription,
-      },
+      data: tagData,
     });
 
     return NextResponse.json(
