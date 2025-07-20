@@ -4,6 +4,34 @@ import { Providers } from "@/components/Providers";
 import type { ReactNode } from "react";
 import ConditionalNavbar from "@/components/ConditionalNavbar";
 
+export const metadata = {
+  title: 'TokyoQuest',
+  description: 'Explore Tokyo like a video game! Complete quests and capture your memories as videos.',
+  keywords: ['TokyoQuest', 'Tokyo', 'Quest', 'Sightseeing'],
+  openGraph: {
+    title: 'TokyoQuest',
+    description: 'Explore Tokyo like a video game!',
+    url: 'https://www.tokyoquest.jp/login',
+    siteName: 'TokyoQuest',
+    images: [
+      {
+        url: 'public/images/tokyoquest_logo.png',
+        width: 1200,
+        height: 630,
+        alt: 'TokyoQuest OG Image',
+      },
+    ],
+    locale: 'ja_JP',
+    type: 'website',
+  },
+  // タブアイコン
+  icons: {
+    icon: [{ url: '/images/tokyoquest_icon.png', type: 'image/png', sizes: '192x192' },],           // 標準の favicon
+    shortcut: '/images/tokyoquest_icon.png',        // Windows のショートカット用
+    apple: '/images/tokyoquest_icon.png',   // iOS ホーム画面用
+  },
+};
+
 export default async function RootLayout({
   children,
 }: {
