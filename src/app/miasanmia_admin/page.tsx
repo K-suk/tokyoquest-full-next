@@ -97,6 +97,7 @@ export default function AdminPage() {
 
     // Tag editing state
     const [editingQuest, setEditingQuest] = useState<Quest | null>(null);
+    const [showEditQuestModal, setShowEditQuestModal] = useState(false);
     const [showTagModal, setShowTagModal] = useState(false);
     const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
@@ -312,6 +313,35 @@ export default function AdminPage() {
         } catch (error) {
             console.error('Error creating tag:', error);
             alert('Failed to create tag. Please try again.');
+        }
+    };
+
+    const openEditQuestModal = (quest: Quest) => {
+        setEditingQuest(quest);
+        setShowEditQuestModal(true);
+    };
+
+    const updateQuest = async (questId: number, questData: Partial<Quest & { tagIds: number[] }>) => {
+        try {
+            const response = await fetch(`/api/miasanmia_admin/quests/${questId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(questData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to update quest');
+            }
+
+            setShowEditQuestModal(false);
+            setEditingQuest(null);
+            fetchQuests();
+        } catch (error) {
+            console.error('Error updating quest:', error);
+            alert(`Failed to update quest: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     };
 
@@ -763,6 +793,7 @@ export default function AdminPage() {
                                 filters={questFilters}
                                 onUpdateFilters={updateQuestFilters}
                                 onOpenTagModal={openTagModal}
+                                onOpenEditQuestModal={openEditQuestModal}
                                 onUploadImage={uploadQuestImage}
                                 tags={tags}
                             />
@@ -1168,6 +1199,165 @@ export default function AdminPage() {
                     </div>
                 </div>
             )}
+
+            {/* Quest Edit Modal */}
+            {showEditQuestModal && editingQuest && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <h3 className="text-lg font-semibold mb-4">Edit Quest</h3>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Title *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editingQuest.title}
+                                        onChange={(e) => setEditingQuest({ ...editingQuest, title: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Description *
+                                    </label>
+                                    <textarea
+                                        value={editingQuest.description}
+                                        onChange={(e) => setEditingQuest({ ...editingQuest, description: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                        rows={4}
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Location *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editingQuest.location}
+                                        onChange={(e) => setEditingQuest({ ...editingQuest, location: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                        required
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Tips
+                                    </label>
+                                    <textarea
+                                        value={editingQuest.tips || ''}
+                                        onChange={(e) => setEditingQuest({ ...editingQuest, tips: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                        rows={3}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Badge
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editingQuest.badget || ''}
+                                        onChange={(e) => setEditingQuest({ ...editingQuest, badget: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Image URL
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editingQuest.imgUrl || ''}
+                                        onChange={(e) => setEditingQuest({ ...editingQuest, imgUrl: e.target.value })}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                                        placeholder="Enter image URL or upload via drag & drop"
+                                    />
+                                    {editingQuest.imgUrl && (
+                                        <div className="mt-2">
+                                            <img
+                                                src={editingQuest.imgUrl}
+                                                alt="Quest image preview"
+                                                className="w-32 h-24 object-cover rounded border"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Tags
+                                    </label>
+                                    <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
+                                        {tags.map((tag) => (
+                                            <label key={tag.id} className="flex items-center mb-2">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={editingQuest.tags.some(t => t.id === tag.id)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setEditingQuest({
+                                                                ...editingQuest,
+                                                                tags: [...editingQuest.tags, tag]
+                                                            });
+                                                        } else {
+                                                            setEditingQuest({
+                                                                ...editingQuest,
+                                                                tags: editingQuest.tags.filter(t => t.id !== tag.id)
+                                                            });
+                                                        }
+                                                    }}
+                                                    className="mr-2"
+                                                />
+                                                <span className="text-sm">{tag.name}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end space-x-2 mt-6">
+                                <button
+                                    onClick={() => {
+                                        setShowEditQuestModal(false);
+                                        setEditingQuest(null);
+                                    }}
+                                    className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (editingQuest) {
+                                            updateQuest(editingQuest.id, {
+                                                title: editingQuest.title,
+                                                description: editingQuest.description,
+                                                location: editingQuest.location,
+                                                tips: editingQuest.tips,
+                                                badget: editingQuest.badget,
+                                                imgUrl: editingQuest.imgUrl,
+                                                tagIds: editingQuest.tags.map(tag => tag.id),
+                                            });
+                                        }
+                                    }}
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                                >
+                                    Update Quest
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -1329,11 +1519,12 @@ function CompletionsTab({ completions, filters, onUpdateFilters, onDownloadImage
 }
 
 // Quests Tab Component
-function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onUploadImage, tags }: {
+function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onOpenEditQuestModal, onUploadImage, tags }: {
     quests: Quest[];
     filters: { page: number; limit: number; search: string; questId: string; tagId: string; sortBy: string; sortOrder: string };
     onUpdateFilters: (filters: Partial<{ page: number; limit: number; search: string; questId: string; tagId: string; sortBy: string; sortOrder: string }>) => void;
     onOpenTagModal: (quest: Quest) => void;
+    onOpenEditQuestModal: (quest: Quest) => void;
     onUploadImage: (questId: number, file: File) => Promise<string>;
     tags: Tag[];
 }) {
@@ -1533,6 +1724,12 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onUploadI
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <div className="flex flex-col space-y-2">
+                                            <button
+                                                onClick={() => onOpenEditQuestModal(quest)}
+                                                className="text-indigo-600 hover:text-indigo-900"
+                                            >
+                                                Edit Quest
+                                            </button>
                                             <button
                                                 onClick={() => onOpenTagModal(quest)}
                                                 className="text-blue-600 hover:text-blue-900"
