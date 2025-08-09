@@ -4,13 +4,14 @@ import { authOptions } from "@/lib/auth-config";
 import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(request: NextRequest) {
   try {
+    // Supabaseクライアントを動的に初期化
+    const supabase = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(
   request: NextRequest,
@@ -68,6 +68,7 @@ export async function POST(
     const fileName = `quest_${questId}_${timestamp}.${fileExtension}`;
 
     // Supabase Storageにアップロード
+    const supabaseAdmin = getSupabaseAdmin();
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
