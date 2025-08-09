@@ -11,6 +11,8 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
+# Copy prisma schema for postinstall hook
+COPY prisma ./prisma
 RUN npm ci
 
 # Production dependencies
@@ -18,15 +20,14 @@ FROM base AS prod-deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json* ./
+# Copy prisma schema for postinstall hook
+COPY prisma ./prisma
 RUN npm ci --omit=dev
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-# Copy Prisma schema first for generation
-COPY prisma ./prisma
-COPY package.json package-lock.json* ./
 COPY . .
 
 # Build arguments for environment variables needed at build time
