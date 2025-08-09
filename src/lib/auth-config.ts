@@ -7,8 +7,8 @@ export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.GOOGLE_CLIENT_ID || "placeholder",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "placeholder",
     }),
   ],
   session: {
@@ -16,7 +16,7 @@ export const authOptions: AuthOptions = {
     maxAge: 24 * 60 * 60, // 24時間
     updateAge: 60 * 60, // 1時間ごとに更新
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || "placeholder-secret-for-build",
   callbacks: {
     async signIn({ account, profile }) {
       if (!account || !profile) return false;

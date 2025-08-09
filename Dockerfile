@@ -30,18 +30,19 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build arguments for environment variables needed at build time
-ARG NEXTAUTH_URL
-ARG NEXTAUTH_SECRET
-ARG GOOGLE_CLIENT_ID
-ARG GOOGLE_CLIENT_SECRET
-ARG DATABASE_URL
-ARG SUPABASE_URL
-ARG SUPABASE_ANON_KEY
-ARG ADMIN_SECURITY_TOKEN
-ARG SUPABASE_SERVICE_ROLE_KEY
+# Build arguments - using placeholder values for security
+# Real values will be set at runtime through Cloud Run environment variables
+ARG NEXTAUTH_URL="http://placeholder:3000"
+ARG NEXTAUTH_SECRET="placeholder-secret-for-build-only"
+ARG GOOGLE_CLIENT_ID="placeholder"
+ARG GOOGLE_CLIENT_SECRET="placeholder"
+ARG DATABASE_URL="postgresql://placeholder:placeholder@localhost:5432/placeholder"
+ARG SUPABASE_URL="http://placeholder"
+ARG SUPABASE_ANON_KEY="placeholder"
+ARG ADMIN_SECURITY_TOKEN="placeholder"
+ARG SUPABASE_SERVICE_ROLE_KEY="placeholder"
 
-# Set environment variables for build
+# Set environment variables for build (these are just for build, not runtime)
 ENV NEXTAUTH_URL=$NEXTAUTH_URL
 ENV NEXTAUTH_SECRET=$NEXTAUTH_SECRET
 ENV GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID

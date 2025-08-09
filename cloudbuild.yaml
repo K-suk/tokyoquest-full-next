@@ -1,27 +1,9 @@
 # Google Cloud Build configuration for automatic deployment to Cloud Run
 steps:
-  # Build the Docker image
+  # Build the Docker image (without secrets for security)
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
-      - '--build-arg'
-      - 'NEXTAUTH_URL=${_NEXTAUTH_URL}'
-      - '--build-arg'
-      - 'NEXTAUTH_SECRET=${_NEXTAUTH_SECRET}'
-      - '--build-arg'
-      - 'GOOGLE_CLIENT_ID=${_GOOGLE_CLIENT_ID}'
-      - '--build-arg'
-      - 'GOOGLE_CLIENT_SECRET=${_GOOGLE_CLIENT_SECRET}'
-      - '--build-arg'
-      - 'DATABASE_URL=${_DATABASE_URL}'
-      - '--build-arg'
-      - 'SUPABASE_URL=${_SUPABASE_URL}'
-      - '--build-arg'
-      - 'SUPABASE_ANON_KEY=${_SUPABASE_ANON_KEY}'
-      - '--build-arg'
-      - 'ADMIN_SECURITY_TOKEN=${_ADMIN_SECURITY_TOKEN}'
-      - '--build-arg'
-      - 'SUPABASE_SERVICE_ROLE_KEY=${_SUPABASE_SERVICE_ROLE_KEY}'
       - '-t'
       - 'gcr.io/$PROJECT_ID/tokyoquest:$COMMIT_SHA'
       - '.'
