@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone", // Docker用のstandalone出力を有効化
   images: {
     // 既存のドメインに加え、ピクセル指定パスのみを許可
     domains: [

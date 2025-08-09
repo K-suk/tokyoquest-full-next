@@ -8,14 +8,15 @@ export const metadata = {
   title: 'TokyoQuest',
   description: 'Explore Tokyo like a video game! Complete quests and capture your memories as videos.',
   keywords: ['TokyoQuest', 'Tokyo', 'Quest', 'Sightseeing'],
+  robots: 'index, follow', // デフォルトでインデックスを許可
   openGraph: {
     title: 'TokyoQuest',
     description: 'Explore Tokyo like a video game!',
-    url: 'https://www.tokyoquest.jp/login',
+    url: 'https://www.tokyoquest.jp',
     siteName: 'TokyoQuest',
     images: [
       {
-        url: 'public/images/tokyoquest_logo.png',
+        url: 'https://www.tokyoquest.jp/images/tokyoquest_logo.png',
         width: 1200,
         height: 630,
         alt: 'TokyoQuest OG Image',

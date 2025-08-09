@@ -14,11 +14,19 @@ export const revalidate = 0;
 export const fetchCache = 'force-no-store';
 
 
-// ブラウザのキャッシュを無効化
+// ホームページのメタデータ
 export const metadata = {
-  'Cache-Control': 'no-cache, no-store, must-revalidate',
-  'Pragma': 'no-cache',
-  'Expires': '0',
+  title: 'TokyoQuest - 東京をゲームのように探索しよう',
+  description: 'TokyoQuestで東京をビデオゲームのように探索！クエストを完了して思い出を写真や動画で保存しよう。',
+  keywords: ['東京', 'Tokyo', '観光', 'クエスト', 'Quest', '探索', 'Sightseeing'],
+  robots: 'index, follow',
+  openGraph: {
+    title: 'TokyoQuest - 東京をゲームのように探索しよう',
+    description: 'TokyoQuestで東京をビデオゲームのように探索！',
+    url: 'https://www.tokyoquest.jp',
+    siteName: 'TokyoQuest',
+    type: 'website',
+  },
 };
 
 

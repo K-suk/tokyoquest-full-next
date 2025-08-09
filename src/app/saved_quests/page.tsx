@@ -14,11 +14,12 @@ export const fetchCache = 'force-no-store';
 
 // セキュリティヘッダー
 
-// ブラウザのキャッシュを無効化
+// Saved Questsページのメタデータ
 export const metadata = {
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0',
+    title: 'Saved Quests - TokyoQuest',
+    description: '保存したお気に入りのTokyoクエストを確認しよう。後で挑戦したいクエストをまとめて管理。',
+    keywords: ['保存', 'Saved', 'クエスト', 'Quest', 'お気に入り', 'Favorites'],
+    robots: 'noindex, nofollow', // 個人のセーブデータなのでインデックスしない
 };
 
 export default async function SavedQuestsPage() {
