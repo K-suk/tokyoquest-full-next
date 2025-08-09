@@ -11,12 +11,22 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Production dependencies
+FROM base AS prod-deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
+# Copy Prisma schema first for generation
+COPY prisma ./prisma
+COPY package.json package-lock.json* ./
 COPY . .
 
 # Build arguments for environment variables needed at build time
@@ -62,6 +72,9 @@ ENV NEXT_TELEMETRY_DISABLED 1
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
+
+# Copy production dependencies
+COPY --from=prod-deps /app/node_modules ./node_modules
 
 COPY --from=builder /app/public ./public
 
