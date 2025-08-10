@@ -40,6 +40,10 @@ options:
   machineType: 'E2_HIGHCPU_8'
   # Set timeout to 20 minutes
   timeout: '1200s'
+  # Enable build caching for faster builds
+  diskSizeGb: '100'
+  # Use parallel builds
+  pool: 'default'
 
 # Substitution variables (will be set in Cloud Build trigger)
 substitutions:
