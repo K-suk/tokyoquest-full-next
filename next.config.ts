@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone", // Docker用のstandalone出力を有効化
+  // パフォーマンス最適化
+  experimental: {
+    optimizePackageImports: ["lucide-react", "react-icons"],
+  },
   images: {
     // 既存のドメインに加え、ピクセル指定パスのみを許可
     domains: [
@@ -154,6 +158,34 @@ const nextConfig: NextConfig = {
               "font-src 'self' data:",
               "connect-src 'self'",
             ].join("; "),
+          },
+        ],
+      },
+      // 静的アセットの長期キャッシュ
+      {
+        source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/images/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/public/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
           },
         ],
       },

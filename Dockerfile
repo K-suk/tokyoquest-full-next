@@ -1,7 +1,7 @@
 # Dockerfile for Next.js application on Google Cloud Run
 
-# Use the official Node.js runtime as the base image
-FROM node:18-alpine AS base
+# Use the official Node.js runtime as the base image (optimized for production)
+FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -64,8 +64,8 @@ RUN npx prisma generate
 # Build the application
 RUN npm run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
+# Production image, copy all the files and run next (optimized)
+FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production

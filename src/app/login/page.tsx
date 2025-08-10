@@ -82,9 +82,9 @@ function LoginPageContent() {
             {/* セキュリティ: CSP nonce対応 */}
             <meta httpEquiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;" />
 
-            {/* 画像のプリロード */}
-            <link rel="preload" as="image" href="/images/login-bg.png" />
-            <link rel="preload" as="image" href="/images/tokyoquest_logo.png" />
+            {/* 画像のプリロード - パフォーマンス最適化 */}
+            <link rel="preload" as="image" href="/images/login-bg.png" fetchPriority="high" />
+            <link rel="preload" as="image" href="/images/tokyoquest_logo.png" fetchPriority="high" />
 
             {/* 背景イメージ */}
             <div className="absolute inset-0 z-0">
@@ -98,6 +98,7 @@ function LoginPageContent() {
                             priority
                             sizes="100vw"
                             quality={85}
+                            fetchPriority="high"
                             onError={() => {
                                 console.error('Background image failed to load');
                                 setImageError(prev => ({ ...prev, background: true }));
@@ -130,6 +131,7 @@ function LoginPageContent() {
                                 className="w-64 sm:w-80 md:w-96 lg:w-[400px] h-auto"
                                 priority
                                 quality={90}
+                                fetchPriority="high"
                                 onError={() => {
                                     console.error('Logo failed to load');
                                     setImageError(prev => ({ ...prev, logo: true }));
