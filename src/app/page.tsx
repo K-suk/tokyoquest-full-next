@@ -41,7 +41,12 @@ export const metadata = {
 };
 
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const params = await searchParams;
   // 1) サーバーセッションをチェック（セッション情報は露出させない）
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
@@ -60,9 +65,14 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  // 3) 並列でデータを取得（パフォーマンス向上）
+  // 3) URLパラメータからページ番号を取得
+  const page = parseInt(params.page || "1");
+  const limit = 20;
+  const offset = (page - 1) * limit;
+
+  // 4) 並列でデータを取得（パフォーマンス向上）
   const [initialQuests, savedQuests, tags, totalCount] = await Promise.all([
-    // Prismaからクエスト一覧を取得（最初の20件のみ）
+    // Prismaからクエスト一覧を取得（ページネーション対応）
     prisma.quest.findMany({
       orderBy: { date_created: "desc" },
       select: {
@@ -73,7 +83,8 @@ export default async function HomePage() {
         location: true,
         badget: true,
       },
-      take: 20,
+      take: limit,
+      skip: offset,
     }),
     // ユーザーが保存したクエストのID一覧を取得（user_idで直接検索）
     prisma.savedQuest.findMany({
@@ -108,11 +119,11 @@ export default async function HomePage() {
 
   // ページネーション情報を構築
   const initialPagination = {
-    currentPage: 1,
-    totalPages: Math.ceil(totalCount / 20),
+    currentPage: page,
+    totalPages: Math.ceil(totalCount / limit),
     totalCount,
-    hasNextPage: totalCount > 20,
-    hasPrevPage: false,
+    hasNextPage: page < Math.ceil(totalCount / limit),
+    hasPrevPage: page > 1,
   };
 
   return (
