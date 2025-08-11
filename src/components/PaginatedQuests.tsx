@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import QuestCard from "./QuestCard";
 import { Quest } from "./QuestCard";
 
@@ -21,10 +22,16 @@ export default function PaginatedQuests({
     initialQuests,
     initialPagination
 }: PaginatedQuestsProps) {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // URLパラメータからページ番号を取得
+    const urlPage = parseInt(searchParams.get("page") || "1");
+
     const [quests, setQuests] = useState<Quest[]>(initialQuests);
     const [pagination, setPagination] = useState<PaginationInfo>(initialPagination);
     const [loading, setLoading] = useState(false);
-    const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage, setCurrentPage] = useState(urlPage);
 
     const fetchQuests = async (page: number) => {
         setLoading(true);
@@ -47,8 +54,22 @@ export default function PaginatedQuests({
         }
     };
 
+    // URLパラメータが変更されたときにページを更新
+    useEffect(() => {
+        if (urlPage !== currentPage) {
+            setCurrentPage(urlPage);
+            fetchQuests(urlPage);
+        }
+    }, [urlPage, currentPage]);
+
     const handlePageChange = (page: number) => {
         setCurrentPage(page);
+
+        // URLパラメータを更新
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("page", page.toString());
+        router.push(`?${params.toString()}`, { scroll: false });
+
         fetchQuests(page);
     };
 
@@ -96,7 +117,7 @@ export default function PaginatedQuests({
                                                 onClick={() => handlePageChange(pageNum)}
                                                 disabled={loading}
                                                 className={`px-3 py-2 rounded-lg border ${currentPage === pageNum
-                                                    ? "bg-blue-500 text-white border-blue-500"
+                                                    ? "bg-[#ff5757] text-white border-[#ff5757]"
                                                     : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                                                     }`}
                                             >
