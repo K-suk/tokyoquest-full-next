@@ -136,3 +136,64 @@ export async function PUT(
     );
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { isStaff: true },
+    });
+
+    if (!user?.isStaff) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const questId = parseInt(id);
+
+    // Check if quest exists
+    const existingQuest = await prisma.quest.findUnique({
+      where: { id: questId },
+    });
+
+    if (!existingQuest) {
+      return NextResponse.json({ error: "Quest not found" }, { status: 404 });
+    }
+
+    // Delete related records first (completions, saved quests, reviews, etc.)
+    await prisma.questCompletion.deleteMany({
+      where: { quest_id: questId },
+    });
+
+    await prisma.savedQuest.deleteMany({
+      where: { quest_id: questId },
+    });
+
+    await prisma.review.deleteMany({
+      where: { quest_id: questId },
+    });
+
+    // Delete the quest (tags association will be automatically removed)
+    await prisma.quest.delete({
+      where: { id: questId },
+    });
+
+    return NextResponse.json({
+      message: "Quest deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting quest:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}

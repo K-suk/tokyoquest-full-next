@@ -345,6 +345,26 @@ export default function AdminPage() {
         }
     };
 
+    const deleteQuest = async (questId: number) => {
+        if (!confirm('Are you sure you want to delete this quest? This action cannot be undone.')) return;
+
+        try {
+            const response = await fetch(`/api/miasanmia_admin/quests/${questId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to delete quest');
+            }
+
+            fetchQuests();
+        } catch (error) {
+            console.error('Error deleting quest:', error);
+            alert(`Failed to delete quest: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    };
+
     const updateTag = async (tagId: number, tagData: Partial<Tag>) => {
         try {
             const response = await fetch(`/api/miasanmia_admin/tags/${tagId}`, {
@@ -794,6 +814,7 @@ export default function AdminPage() {
                                 onUpdateFilters={updateQuestFilters}
                                 onOpenTagModal={openTagModal}
                                 onOpenEditQuestModal={openEditQuestModal}
+                                onDeleteQuest={deleteQuest}
                                 onUploadImage={uploadQuestImage}
                                 tags={tags}
                             />
@@ -1419,7 +1440,7 @@ function CompletionsTab({ completions, filters, onUpdateFilters, onDownloadImage
             </div>
 
             {/* 完了データ一覧 */}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-white rounded-lg shadow">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
@@ -1519,12 +1540,13 @@ function CompletionsTab({ completions, filters, onUpdateFilters, onDownloadImage
 }
 
 // Quests Tab Component
-function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onOpenEditQuestModal, onUploadImage, tags }: {
+function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onOpenEditQuestModal, onDeleteQuest, onUploadImage, tags }: {
     quests: Quest[];
     filters: { page: number; limit: number; search: string; questId: string; tagId: string; sortBy: string; sortOrder: string };
     onUpdateFilters: (filters: Partial<{ page: number; limit: number; search: string; questId: string; tagId: string; sortBy: string; sortOrder: string }>) => void;
     onOpenTagModal: (quest: Quest) => void;
     onOpenEditQuestModal: (quest: Quest) => void;
+    onDeleteQuest: (questId: number) => void;
     onUploadImage: (questId: number, file: File) => Promise<string>;
     tags: Tag[];
 }) {
@@ -1636,27 +1658,27 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onOpenEdi
             </div>
 
             {/* Quest一覧 */}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-white rounded-lg shadow">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200 table-fixed" style={{ width: '1200px' }}>
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
                                     ID
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-56">
                                     Title
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
                                     Location
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                                     Tags
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
                                     Image
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-72">
                                     Actions
                                 </th>
                             </tr>
@@ -1664,10 +1686,10 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onOpenEdi
                         <tbody className="bg-white divide-y divide-gray-200">
                             {quests.map((quest: Quest) => (
                                 <tr key={quest.id} className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 w-16">
                                         {quest.id}
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 w-56">
                                         <div>
                                             <div className="text-sm font-medium text-gray-900">
                                                 {quest.title}
@@ -1677,25 +1699,25 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onOpenEdi
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <td className="px-6 py-4 text-sm text-gray-900 w-40 break-all">
                                         {quest.location}
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 w-24">
                                         <div className="flex flex-wrap gap-1">
                                             {quest.tags.map((tag) => (
                                                 <span
                                                     key={tag.id}
-                                                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"
+                                                    className="inline-flex items-center px-1 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800"
                                                 >
                                                     {tag.name}
                                                 </span>
                                             ))}
                                             {quest.tags.length === 0 && (
-                                                <span className="text-gray-400 text-sm">No tags</span>
+                                                <span className="text-gray-400 text-xs">No tags</span>
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-6 py-4 w-16">
                                         {quest.imgUrl ? (
                                             <div className="w-16 h-16 relative bg-gray-200 rounded overflow-hidden">
                                                 <Image
@@ -1722,19 +1744,25 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onOpenEdi
                                             </div>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <div className="flex flex-col space-y-2">
+                                    <td className="px-6 py-4 text-sm font-medium w-72 min-w-[288px]">
+                                        <div className="flex flex-wrap gap-2 items-center">
                                             <button
                                                 onClick={() => onOpenEditQuestModal(quest)}
-                                                className="text-indigo-600 hover:text-indigo-900"
+                                                className="text-indigo-600 hover:text-indigo-900 text-sm px-2 py-1 rounded hover:bg-indigo-50"
                                             >
                                                 Edit Quest
                                             </button>
                                             <button
                                                 onClick={() => onOpenTagModal(quest)}
-                                                className="text-blue-600 hover:text-blue-900"
+                                                className="text-blue-600 hover:text-blue-900 text-sm px-2 py-1 rounded hover:bg-blue-50"
                                             >
                                                 Edit Tags
+                                            </button>
+                                            <button
+                                                onClick={() => onDeleteQuest(quest.id)}
+                                                className="text-red-600 hover:text-red-900 text-sm px-2 py-1 rounded hover:bg-red-50"
+                                            >
+                                                Delete Quest
                                             </button>
                                             <div className="flex items-center space-x-2">
                                                 <input
@@ -1752,18 +1780,14 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onOpenEdi
                                                 />
                                                 <label
                                                     htmlFor={`image-upload-${quest.id}`}
-                                                    className="cursor-pointer text-green-600 hover:text-green-900 text-sm border-2 border-dashed border-green-300 px-2 py-1 rounded hover:border-green-500 transition-colors"
+                                                    className="cursor-pointer text-green-600 hover:text-green-900 text-xs border-2 border-dashed border-green-300 px-2 py-1 rounded hover:border-green-500 transition-colors"
                                                 >
                                                     📷 Upload Image
                                                 </label>
                                             </div>
-                                            <div className="text-xs text-gray-500 mt-1">
-                                                Drag & drop or click to upload
-                                            </div>
+                                            <div className="text-xs text-gray-500">Drag & drop or click to upload</div>
                                             {quest.imgUrl && (
-                                                <div className="text-xs text-gray-500">
-                                                    Has image: {quest.imgUrl.split('/').pop()}
-                                                </div>
+                                                <div className="text-xs text-gray-500">Has image: {quest.imgUrl.split('/').pop()}</div>
                                             )}
                                         </div>
                                     </td>
@@ -1917,7 +1941,7 @@ function TagsTab({
             </div>
 
             {/* Tag一覧 */}
-            <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="bg-white rounded-lg shadow">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
