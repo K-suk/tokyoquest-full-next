@@ -44,5 +44,10 @@
   },
   "prisma": {
     "seed": "node --loader ts-node/esm scripts/seed-tags.ts"
-  }
+  },
+  "browserslist": [
+    "defaults",
+    "not ie 11",
+    "not ie_mob 11"
+  ]
 }

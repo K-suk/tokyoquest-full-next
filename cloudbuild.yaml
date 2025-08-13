@@ -5,14 +5,14 @@ steps:
     args:
       - 'build'
       - '-t'
-      - 'gcr.io/$PROJECT_ID/tokyoquest:$COMMIT_SHA'
+      - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/tokyoquest/tokyoquest:$COMMIT_SHA'
       - '.'
 
-  # Push the image to Google Container Registry
+  # Push the image to Artifact Registry (asia-northeast1)
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
-      - 'gcr.io/$PROJECT_ID/tokyoquest:$COMMIT_SHA'
+      - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/tokyoquest/tokyoquest:$COMMIT_SHA'
 
   # Deploy to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -21,7 +21,7 @@ steps:
       - 'deploy'
       - 'tokyoquest'
       - '--image'
-      - 'gcr.io/$PROJECT_ID/tokyoquest:$COMMIT_SHA'
+      - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/tokyoquest/tokyoquest:$COMMIT_SHA'
       - '--region'
       - 'asia-northeast1'
       - '--platform'
@@ -32,7 +32,7 @@ steps:
 
 # Specify the Docker image to store
 images:
-  - 'gcr.io/$PROJECT_ID/tokyoquest:$COMMIT_SHA'
+  - 'asia-northeast1-docker.pkg.dev/$PROJECT_ID/tokyoquest/tokyoquest:$COMMIT_SHA'
 
 # Build options
 options:
@@ -40,6 +40,12 @@ options:
   machineType: 'E2_HIGHCPU_8'
   # Set timeout to 20 minutes
   timeout: '1200s'
+  # Enable build caching for faster builds
+  diskSizeGb: '100'
+  # Use parallel builds
+  pool: 'default'
+  # Specify build region
+  workerPool: 'projects/$PROJECT_ID/locations/asia-northeast1/workerPools/default'
 
 # Substitution variables (will be set in Cloud Build trigger)
 substitutions:

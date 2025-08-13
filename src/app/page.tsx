@@ -2,16 +2,27 @@
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth-config";
 import Link from "next/link";
-import QuestCard from "../components/QuestCard";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import { toQuestDTO } from "@/lib/dto";
 
-// キャッシュ設定を最適化
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
-export const fetchCache = 'force-no-store';
+// 動的インポートでPaginatedQuestsを遅延読み込み
+const PaginatedQuests = dynamic(() => import("../components/PaginatedQuests"), {
+  loading: () => <div className="animate-pulse space-y-4">
+    <div className="h-12 bg-gray-200 rounded"></div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="animate-pulse bg-gray-200 rounded-lg h-[200px]" />
+      ))}
+    </div>
+  </div>,
+  ssr: true,
+});
+
+// パフォーマンス最適化 - 60秒間キャッシュ
+export const revalidate = 60;
 
 
 // ホームページのメタデータ
@@ -30,7 +41,12 @@ export const metadata = {
 };
 
 
-export default async function HomePage() {
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const params = await searchParams;
   // 1) サーバーセッションをチェック（セッション情報は露出させない）
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) {
@@ -49,9 +65,14 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  // 3) 並列でデータを取得（パフォーマンス向上）
-  const [quests, savedQuests, tags] = await Promise.all([
-    // Prismaからクエスト一覧を取得
+  // 3) URLパラメータからページ番号を取得
+  const page = parseInt(params.page || "1");
+  const limit = 20;
+  const offset = (page - 1) * limit;
+
+  // 4) 並列でデータを取得（パフォーマンス向上）
+  const [initialQuests, savedQuests, tags, totalCount] = await Promise.all([
+    // Prismaからクエスト一覧を取得（ページネーション対応）
     prisma.quest.findMany({
       orderBy: { date_created: "desc" },
       select: {
@@ -62,6 +83,8 @@ export default async function HomePage() {
         location: true,
         badget: true,
       },
+      take: limit,
+      skip: offset,
     }),
     // ユーザーが保存したクエストのID一覧を取得（user_idで直接検索）
     prisma.savedQuest.findMany({
@@ -86,11 +109,22 @@ export default async function HomePage() {
       },
       take: 8,
     }),
+    // 総クエスト数を取得
+    prisma.quest.count(),
   ]);
 
   // 4) DTOに変換してClient Componentに渡す（セキュリティ強化）
-  const questDTOs = quests.map(quest => toQuestDTO(quest));
+  const questDTOs = initialQuests.map(quest => toQuestDTO(quest));
   const savedQuestIds = new Set(savedQuests.map(sq => sq.quest_id));
+
+  // ページネーション情報を構築
+  const initialPagination = {
+    currentPage: page,
+    totalPages: Math.ceil(totalCount / limit),
+    totalCount,
+    hasNextPage: page < Math.ceil(totalCount / limit),
+    hasPrevPage: page > 1,
+  };
 
   return (
     <main className="pb-6">
@@ -135,20 +169,16 @@ export default async function HomePage() {
 
 
       {/* All Quests */}
-      <section className="px-4 mt-8">
-        <h2 className="text-2xl font-bold mb-4">All Quests</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {questDTOs?.map((quest) => (
-            <QuestCard
-              key={quest.id}
-              quest={{
-                ...quest,
-                imgUrl: quest.imgUrl ?? "",
-                is_saved: savedQuestIds.has(quest.id)
-              }}
-            />
-          ))}
-        </div>
+      <section className="mt-8">
+        <h2 className="text-2xl font-bold mb-4 px-4">All Quests</h2>
+        <PaginatedQuests
+          initialQuests={questDTOs.map(quest => ({
+            ...quest,
+            imgUrl: quest.imgUrl ?? "",
+            is_saved: savedQuestIds.has(quest.id)
+          }))}
+          initialPagination={initialPagination}
+        />
       </section>
     </main>
   );

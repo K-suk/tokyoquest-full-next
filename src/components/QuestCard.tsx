@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export type Quest = {
     id: number;
@@ -18,6 +18,8 @@ interface QuestCardProps {
 
 export default function QuestCard({ quest }: QuestCardProps) {
     const router = useRouter();
+    const searchParams = useSearchParams();
+
     // サーバーから渡された is_saved を初期値にする
     const [saved, setSaved] = useState(quest.is_saved);
     const [loading, setLoading] = useState(false);
@@ -104,8 +106,16 @@ export default function QuestCard({ quest }: QuestCardProps) {
         if ((e.target as HTMLElement).closest('button')) {
             return;
         }
-        // 詳細ページに遷移
-        router.push(`/quests/${quest.id}`);
+
+        // 現在のページ情報を保持して詳細ページに遷移
+        const currentPage = searchParams.get("page") || "1";
+        const params = new URLSearchParams();
+        if (currentPage !== "1") {
+            params.set("page", currentPage);
+        }
+
+        const returnUrl = params.toString() ? `/?${params.toString()}` : "/";
+        router.push(`/quests/${quest.id}?returnTo=${encodeURIComponent(returnUrl)}`);
     };
 
     return (
@@ -119,6 +129,9 @@ export default function QuestCard({ quest }: QuestCardProps) {
                     alt={quest.title}
                     fill
                     className="object-cover"
+                    sizes="(max-width: 768px) 50vw, 25vw"
+                    priority={false}
+                    loading="lazy"
                 />
                 <button
                     onClick={handleSaveToggle}
@@ -130,7 +143,7 @@ export default function QuestCard({ quest }: QuestCardProps) {
                     {saved ? "★" : "☆"}
                 </button>
             </div>
-            <div className="absolute bottom-0 left-0 right-0 bg-red-500 text-white p-3">
+            <div className="absolute bottom-0 left-0 right-0 bg-[#ff5757] text-white p-3">
                 <p className="line-clamp-2 font-bold">{quest.title}</p>
             </div>
         </div>
