@@ -132,6 +132,7 @@ export default function QuestCard({ quest }: QuestCardProps) {
                     sizes="(max-width: 768px) 50vw, 25vw"
                     priority={false}
                     loading="lazy"
+                    quality={75}
                 />
                 <button
                     onClick={handleSaveToggle}
