@@ -33,7 +33,14 @@ const protectedPaths = [
   "/api/profile",
   "/api/saved-quests",
 ];
-const publicPaths = ["/login", "/privacy", "/term", "/images"]; // images を追加
+const publicPaths = [
+  "/login",
+  "/privacy",
+  "/term",
+  "/images",
+  "/sitemap.xml",
+  "/robots.txt",
+]; // SEO関連ファイルを追加
 
 function isProtectedPath(pathname: string): boolean {
   if (publicPaths.some((p) => pathname.startsWith(p))) return false;
@@ -60,8 +67,13 @@ export async function middleware(request: NextRequest) {
     return addSecurityHeaders(response);
   }
 
-  // ── 3) /privacy, /term ──
-  if (pathname === "/privacy" || pathname === "/term") {
+  // ── 3) /privacy, /term, /sitemap.xml, /robots.txt ──
+  if (
+    pathname === "/privacy" ||
+    pathname === "/term" ||
+    pathname === "/sitemap.xml" ||
+    pathname === "/robots.txt"
+  ) {
     return addSecurityHeaders(NextResponse.next());
   }
 

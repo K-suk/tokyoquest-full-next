@@ -14,6 +14,8 @@ export default function robots(): MetadataRoute.Robots {
           "/quests/*",
           "/privacy",
           "/term",
+          "/sitemap.xml",
+          "/robots.txt",
         ],
         disallow: [
           "/login",
