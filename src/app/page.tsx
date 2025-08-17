@@ -83,7 +83,7 @@ export default function LandingPage() {
             />
 
             {/* Header */}
-            <header className="sticky top-0 z-50 backdrop-blur-md bg-[#ff5757] border-b border-slate-200/50 shadow-sm">
+            <header className="sticky top-0 z-50 backdrop-blur-md bg-[#e84b4b] border-b border-slate-200/50 shadow-sm">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
                     <Link href="/" className="flex items-center gap-3 font-bold text-xl">
                         <Image

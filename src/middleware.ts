@@ -43,14 +43,12 @@ const protectedPaths = [
   "/api/saved-quests",
 ];
 const publicPaths = [
-  "/",
-  "/login",
   "/privacy",
   "/term",
   "/images",
   "/sitemap.xml",
   "/robots.txt",
-]; // SEO関連ファイルを追加
+]; // /と/loginを削除
 
 function isProtectedPath(pathname: string): boolean {
   if (publicPaths.some((p) => pathname.startsWith(p))) return false;
@@ -70,14 +68,28 @@ export async function middleware(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next(), pathname);
   }
 
-  // ── 2) /login のボットチェック＋ヘッダー追加 ──
+  // ── 2) ログイン済みユーザーのチェック ──
+  const token = await getToken({
+    req: request,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+
+  // ── 3) ログイン済みユーザーが /login または / にアクセスした場合、/home にリダイレクト ──
+  if (token && (pathname === "/login" || pathname === "/")) {
+    return addSecurityHeaders(
+      NextResponse.redirect(new URL("/home", request.url)),
+      pathname
+    );
+  }
+
+  // ── 4) /login のボットチェック＋ヘッダー追加（未ログインユーザーのみ） ──
   if (pathname === "/login") {
     // ボット検出省略…
     const response = NextResponse.next();
     return addSecurityHeaders(response, pathname);
   }
 
-  // ── 3) /play, /privacy, /term, /sitemap.xml, /robots.txt ──
+  // ── 5) /play, /privacy, /term, /sitemap.xml, /robots.txt ──
   if (
     pathname === "/play" ||
     pathname === "/privacy" ||
@@ -88,12 +100,8 @@ export async function middleware(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next(), pathname);
   }
 
-  // ── 4) 認証必須パス ──
+  // ── 6) 認証必須パス ──
   if (isProtectedPath(pathname)) {
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
     if (!token) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
@@ -101,21 +109,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // ── 5) ログイン済みユーザーが /login に来たらルートへ ──
-  if (pathname === "/login") {
-    const token = await getToken({
-      req: request,
-      secret: process.env.NEXTAUTH_SECRET,
-    });
-    if (token) {
-      return addSecurityHeaders(
-        NextResponse.redirect(new URL("/", request.url)),
-        pathname
-      );
-    }
-  }
-
-  // ── 6) 上記以外は通常応答＋ヘッダー追加 ──
+  // ── 7) 上記以外は通常応答＋ヘッダー追加 ──
   return addSecurityHeaders(NextResponse.next(), pathname);
 }
 
