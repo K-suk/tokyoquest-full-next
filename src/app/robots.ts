@@ -7,6 +7,7 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: "*",
         allow: [
           "/",
+          "/login",
           "/blog",
           "/blog/*",
           "/category",
@@ -18,7 +19,6 @@ export default function robots(): MetadataRoute.Robots {
           "/robots.txt",
         ],
         disallow: [
-          "/login",
           "/profile/*",
           "/saved_quests",
           "/miasanmia_admin/*",

@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 // --- ヘッダーを追加する関数 ---
-function addSecurityHeaders(response: NextResponse) {
+function addSecurityHeaders(response: NextResponse, pathname?: string) {
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -13,16 +13,25 @@ function addSecurityHeaders(response: NextResponse) {
     "Strict-Transport-Security",
     "max-age=31536000; includeSubDomains"
   );
-  response.headers.set(
-    "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;"
-  );
+
+  // playページ用の特別なCSP設定
+  if (pathname === "/play") {
+    response.headers.set(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net https://storage.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:;"
+    );
+  } else {
+    response.headers.set(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; worker-src 'self' blob:;"
+    );
+  }
   return response;
 }
 
 // 保護対象パスと公開パスはそのまま使います
 const protectedPaths = [
-  "/",
+  "/home",
   "/category",
   "/miasanmia_admin",
   "/profile",
@@ -34,6 +43,7 @@ const protectedPaths = [
   "/api/saved-quests",
 ];
 const publicPaths = [
+  "/",
   "/login",
   "/privacy",
   "/term",
@@ -57,24 +67,25 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/_next/image") ||
     pathname === "/favicon.ico"
   ) {
-    return addSecurityHeaders(NextResponse.next());
+    return addSecurityHeaders(NextResponse.next(), pathname);
   }
 
   // ── 2) /login のボットチェック＋ヘッダー追加 ──
   if (pathname === "/login") {
     // ボット検出省略…
     const response = NextResponse.next();
-    return addSecurityHeaders(response);
+    return addSecurityHeaders(response, pathname);
   }
 
-  // ── 3) /privacy, /term, /sitemap.xml, /robots.txt ──
+  // ── 3) /play, /privacy, /term, /sitemap.xml, /robots.txt ──
   if (
+    pathname === "/play" ||
     pathname === "/privacy" ||
     pathname === "/term" ||
     pathname === "/sitemap.xml" ||
     pathname === "/robots.txt"
   ) {
-    return addSecurityHeaders(NextResponse.next());
+    return addSecurityHeaders(NextResponse.next(), pathname);
   }
 
   // ── 4) 認証必須パス ──
@@ -86,7 +97,7 @@ export async function middleware(request: NextRequest) {
     if (!token) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
-      return addSecurityHeaders(NextResponse.redirect(loginUrl));
+      return addSecurityHeaders(NextResponse.redirect(loginUrl), pathname);
     }
   }
 
@@ -98,13 +109,14 @@ export async function middleware(request: NextRequest) {
     });
     if (token) {
       return addSecurityHeaders(
-        NextResponse.redirect(new URL("/", request.url))
+        NextResponse.redirect(new URL("/", request.url)),
+        pathname
       );
     }
   }
 
   // ── 6) 上記以外は通常応答＋ヘッダー追加 ──
-  return addSecurityHeaders(NextResponse.next());
+  return addSecurityHeaders(NextResponse.next(), pathname);
 }
 
 export const config = {

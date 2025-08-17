@@ -7,7 +7,7 @@ export default function ConditionalNavbar() {
     const pathname = usePathname();
 
     // ナビバーを非表示にするページ
-    const hideNavbarPaths = ['/login', '/privacy', '/term'];
+    const hideNavbarPaths = ['/', '/login', '/privacy', '/term'];
 
     // 指定されたページではヘッダーを表示しない
     if (hideNavbarPaths.includes(pathname)) {
