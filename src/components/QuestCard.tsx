@@ -24,6 +24,9 @@ export default function QuestCard({ quest }: QuestCardProps) {
     const [saved, setSaved] = useState(quest.is_saved);
     const [loading, setLoading] = useState(false);
 
+    // タイトルを40文字に制限
+    const truncatedTitle = quest.title.length > 60 ? quest.title.substring(0, 60) + "..." : quest.title;
+
     // quest.is_savedが変更された場合に状態を更新
     useEffect(() => {
         setSaved(quest.is_saved);
@@ -145,7 +148,7 @@ export default function QuestCard({ quest }: QuestCardProps) {
                 </button>
             </div>
             <div className="absolute bottom-0 left-0 right-0 bg-[#ff5757] text-white p-3">
-                <p className="line-clamp-2 font-bold">{quest.title}</p>
+                <p className="font-bold text-sm" title={quest.title}>{truncatedTitle}</p>
             </div>
         </div>
     );
