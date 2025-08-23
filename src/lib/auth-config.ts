@@ -72,7 +72,7 @@ export const authOptions: AuthOptions = {
           : "next-auth.session-token",
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
         path: "/",
         secure: process.env.NODE_ENV === "production",
         maxAge: 24 * 60 * 60, // 24時間
@@ -85,9 +85,10 @@ export const authOptions: AuthOptions = {
           : "next-auth.callback-url",
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
         path: "/",
         secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60, // 1時間
       },
     },
     csrfToken: {
@@ -97,9 +98,10 @@ export const authOptions: AuthOptions = {
           : "next-auth.csrf-token",
       options: {
         httpOnly: true,
-        sameSite: "lax",
+        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
         path: "/",
         secure: process.env.NODE_ENV === "production",
+        maxAge: 60 * 60, // 1時間
       },
     },
   },

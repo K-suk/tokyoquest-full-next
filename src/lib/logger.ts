@@ -94,3 +94,128 @@ class Logger {
 }
 
 export const logger = new Logger();
+
+// セキュリティ監視用ロガー
+interface SecurityEvent {
+  timestamp: string;
+  event: string;
+  severity: "low" | "medium" | "high" | "critical";
+  details: Record<string, any>;
+  ip?: string;
+  userAgent?: string;
+  userId?: string;
+}
+
+class SecurityLogger {
+  private events: SecurityEvent[] = [];
+  private readonly maxEvents = 1000;
+
+  log(event: Omit<SecurityEvent, "timestamp">) {
+    const securityEvent: SecurityEvent = {
+      ...event,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.events.push(securityEvent);
+
+    // 最大数を超えたら古いイベントを削除
+    if (this.events.length > this.maxEvents) {
+      this.events = this.events.slice(-this.maxEvents);
+    }
+
+    // 重要度に応じて通常ロガーにも出力
+    const logMethod =
+      event.severity === "critical" || event.severity === "high"
+        ? "error"
+        : event.severity === "medium"
+        ? "warn"
+        : "info";
+
+    logger[logMethod](`[SECURITY] ${event.event}`, {
+      severity: event.severity,
+      details: this.sanitizeSecurityDetails(event.details),
+      ip: event.ip,
+      userAgent: event.userAgent,
+      userId: event.userId,
+    });
+  }
+
+  private sanitizeSecurityDetails(
+    details: Record<string, any>
+  ): Record<string, any> {
+    const sensitiveKeys = [
+      "password",
+      "secret",
+      "token",
+      "key",
+      "credential",
+      "input",
+    ];
+    const result = { ...details };
+
+    sensitiveKeys.forEach((key) => {
+      if (key in result) {
+        result[key] = "[REDACTED]";
+      }
+    });
+
+    return result;
+  }
+
+  // レート制限違反のログ
+  logRateLimit(ip: string, userAgent: string, endpoint: string) {
+    this.log({
+      event: "RATE_LIMIT_EXCEEDED",
+      severity: "medium",
+      details: { endpoint },
+      ip,
+      userAgent,
+    });
+  }
+
+  // 認証失敗のログ
+  logAuthFailure(ip: string, userAgent: string, reason: string) {
+    this.log({
+      event: "AUTHENTICATION_FAILED",
+      severity: "high",
+      details: { reason },
+      ip,
+      userAgent,
+    });
+  }
+
+  // 不正なファイルアップロードのログ
+  logFileUploadViolation(
+    ip: string,
+    userAgent: string,
+    fileName: string,
+    violation: string
+  ) {
+    this.log({
+      event: "FILE_UPLOAD_VIOLATION",
+      severity: "high",
+      details: { fileName, violation },
+      ip,
+      userAgent,
+    });
+  }
+
+  // 統計情報の取得
+  getStats() {
+    const stats = {
+      total: this.events.length,
+      bySeverity: { critical: 0, high: 0, medium: 0, low: 0 },
+      byEvent: {} as Record<string, number>,
+    };
+
+    this.events.forEach((event) => {
+      stats.bySeverity[event.severity]++;
+      stats.byEvent[event.event] = (stats.byEvent[event.event] || 0) + 1;
+    });
+
+    return stats;
+  }
+}
+
+// グローバルセキュリティロガー
+export const securityLogger = new SecurityLogger();

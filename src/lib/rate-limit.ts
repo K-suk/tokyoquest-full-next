@@ -75,7 +75,7 @@ setInterval(() => {
   adminRateLimiter.cleanup();
 }, 60000); // 1分ごとにクリーンアップ
 
-// レート制限ミドルウェア
+// レート制限ミドルウェア（強化版）
 export function withRateLimit(
   rateLimiter: RateLimiter,
   identifier: string
@@ -85,4 +85,41 @@ export function withRateLimit(
   const resetTime = rateLimiter.getResetTime(identifier);
 
   return { allowed, remaining, resetTime };
+}
+
+// IPアドレス抽出ヘルパー
+export function getClientIP(request: Request): string {
+  const xForwardedFor = request.headers.get("x-forwarded-for");
+  if (xForwardedFor) {
+    // 最初のIPアドレスを使用（プロキシチェーン対策）
+    return xForwardedFor.split(",")[0].trim();
+  }
+
+  const xRealIP = request.headers.get("x-real-ip");
+  if (xRealIP) {
+    return xRealIP.trim();
+  }
+
+  const xForwarded = request.headers.get("x-forwarded");
+  if (xForwarded) {
+    return xForwarded.trim();
+  }
+
+  // フォールバック
+  return "unknown";
+}
+
+// ユーザー識別子生成（IP + User-Agent）
+export function generateRateLimitId(request: Request, userId?: string): string {
+  const ip = getClientIP(request);
+  const userAgent = request.headers.get("user-agent") || "unknown";
+
+  if (userId) {
+    // 認証済みユーザーの場合はユーザーIDを優先
+    return `user:${userId}`;
+  }
+
+  // IP + User-Agentベースの識別子
+  const identifier = `${ip}:${userAgent}`;
+  return `ip:${identifier}`;
 }

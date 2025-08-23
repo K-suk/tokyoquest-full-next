@@ -4,6 +4,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image';
 import Link from 'next/link';
 import { QuestDTO } from '@/lib/dto';
+import ARFilterCapture from '@/components/ARFilterCapture';
 
 interface QuestMeta extends Omit<QuestDTO, 'location' | 'badget'> {
     badget?: string;
@@ -56,6 +57,7 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
     const [isUploading, setIsUploading] = useState(false);
     const [showCompleteModal, setShowCompleteModal] = useState(false);
     const [modalAnimation, setModalAnimation] = useState(false);
+    const [showARFilter, setShowARFilter] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fetchQuestStatus = useCallback(async () => {
@@ -259,7 +261,227 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
         setTimeout(() => {
             setShowCompleteModal(false);
             setSelectedImage(null);
+            setShowARFilter(false);
         }, 300);
+    };
+
+    /** ARフィルター撮影を開始 */
+    const startARFilterCapture = () => {
+        setShowARFilter(true);
+    };
+
+    /** ARフィルター撮影をキャンセル */
+    const cancelARFilterCapture = () => {
+        setShowARFilter(false);
+    };
+
+    /** ARフィルター撮影完了時のコールバック */
+    const handleARFilterCapture = (imageData: string) => {
+        setSelectedImage(imageData);
+        setShowARFilter(false);
+    };
+
+    /** 画像をダウンロードするヘルパー関数 */
+    const downloadImage = (imageData: string, fileName: string) => {
+        try {
+            // 方法1: 直接ダウンロード
+            const link = document.createElement('a');
+            link.href = imageData;
+            link.download = fileName;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return true;
+        } catch (error) {
+            console.error('Direct download failed:', error);
+
+            try {
+                // 方法2: Blobを使用したダウンロード
+                const base64Data = imageData.split(',')[1];
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+
+                const byteArray = new Uint8Array(byteNumbers);
+                const blob = new Blob([byteArray], { type: 'image/jpeg' });
+                const url = URL.createObjectURL(blob);
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // メモリリークを防ぐためにURLを解放
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                return true;
+            } catch (blobError) {
+                console.error('Blob download failed:', blobError);
+                return false;
+            }
+        }
+    };
+
+    /** Instagramアプリを開く関数 */
+    const openInstagramApp = () => {
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        if (!isMobile) {
+            window.open('https://www.instagram.com/', '_blank');
+            return;
+        }
+
+        // 複数のInstagramディープリンクを試行
+        const instagramUrls = [
+            'instagram://library?AssetPickerSourceType=1', // ライブラリを開く
+            'instagram://camera', // カメラを開く
+            'instagram://', // アプリを開く
+        ];
+
+        let currentIndex = 0;
+
+        const tryNextUrl = () => {
+            if (currentIndex >= instagramUrls.length) {
+                // すべて失敗した場合はWeb版を開く
+                window.open('https://www.instagram.com/', '_blank');
+                alert('📸 Photo downloaded! Please upload it to Instagram manually.');
+                return;
+            }
+
+            const url = instagramUrls[currentIndex];
+            currentIndex++;
+
+            try {
+                // iframeを使用してアプリを開く
+                const iframe = document.createElement('iframe');
+                iframe.style.display = 'none';
+                iframe.src = url;
+                document.body.appendChild(iframe);
+
+                setTimeout(() => {
+                    document.body.removeChild(iframe);
+                    // 次のURLを試行
+                    setTimeout(tryNextUrl, 1000);
+                }, 500);
+            } catch (error) {
+                console.error('Failed to open Instagram app:', error);
+                tryNextUrl();
+            }
+        };
+
+        tryNextUrl();
+    };
+
+    /** Instagramでシェア */
+    const shareToInstagram = async (imageData: string | null) => {
+        if (!imageData) {
+            alert('No image data available for sharing.');
+            return;
+        }
+
+        try {
+            // 画像形式を判定
+            const isJPEG = imageData.startsWith('data:image/jpeg');
+            const isPNG = imageData.startsWith('data:image/png');
+
+            if (!isJPEG && !isPNG) {
+                throw new Error('Unsupported image format');
+            }
+
+            const imageType = isJPEG ? 'image/jpeg' : 'image/png';
+            const fileExtension = isJPEG ? 'jpg' : 'png';
+
+            // Base64画像データをBlobに変換
+            const base64Data = imageData.split(',')[1]; // data:image/jpeg;base64, の部分を除去
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: imageType });
+
+            // ファイル名を生成
+            const fileName = `tokyoquest_${questMeta.title.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.${fileExtension}`;
+
+            // Fileオブジェクトを作成
+            const file = new File([blob], fileName, { type: imageType });
+
+            // ハッシュタグを生成
+            const hashtags = `#TokyoQuest #${questMeta.title.replace(/[^a-zA-Z0-9]/g, '')} #Tokyo #Quest #Adventure`;
+            const shareText = `Just completed this amazing quest in Tokyo! 🗼✨\n\n${hashtags}`;
+
+            // Web Share APIを使用（モバイルの場合）
+            if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    title: `Completed TokyoQuest: ${questMeta.title}`,
+                    text: shareText,
+                    files: [file]
+                });
+            } else {
+                // モバイルデバイスの場合、Instagramアプリを直接開く
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+                if (isMobile) {
+                    // 画像をダウンロード
+                    const downloadSuccess = downloadImage(imageData, fileName);
+
+                    if (downloadSuccess) {
+                        // Instagramアプリを開く
+                        setTimeout(() => {
+                            openInstagramApp();
+                        }, 500);
+                    } else {
+                        throw new Error('Download failed');
+                    }
+                } else {
+                    // デスクトップの場合
+                    const downloadSuccess = downloadImage(imageData, fileName);
+
+                    if (downloadSuccess) {
+                        // Instagram Web版を開く
+                        setTimeout(() => {
+                            window.open('https://www.instagram.com/', '_blank');
+                            alert('📸 Photo downloaded! Please upload it to Instagram manually.\n\nTip: Use the hashtags in the downloaded filename!');
+                        }, 1000);
+                    } else {
+                        throw new Error('Download failed');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Share error:', error);
+
+            // フォールバック: 直接ダウンロード
+            try {
+                // 画像形式を判定してファイル名を決定
+                const isJPEG = imageData.startsWith('data:image/jpeg');
+                const fileExtension = isJPEG ? 'jpg' : 'png';
+                const fileName = `tokyoquest_${questMeta.title.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.${fileExtension}`;
+
+                const downloadSuccess = downloadImage(imageData, fileName);
+
+                if (downloadSuccess) {
+                    // Instagramアプリを開く
+                    setTimeout(() => {
+                        openInstagramApp();
+                    }, 500);
+                } else {
+                    alert('Failed to download photo. Please try taking the photo again or check your browser permissions.');
+                }
+            } catch (fallbackError) {
+                console.error('Fallback download error:', fallbackError);
+                alert('Failed to share. Please try taking the photo again or check your browser permissions.');
+            }
+        }
     };
 
     return (
@@ -377,37 +599,24 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                                 Take a photo or upload an image to complete this quest!
                             </p>
 
-                            <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div className="grid grid-cols-3 gap-4 mb-4">
                                 {/* 撮影オプション */}
                                 <div className="space-y-2">
                                     <button
                                         onClick={handleCaptureImage}
-                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
+                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200 text-sm"
                                     >
                                         📷 Take Photo
                                     </button>
+                                </div>
+
+                                {/* ARフィルター撮影オプション */}
+                                <div className="space-y-2">
                                     <button
-                                        onClick={() => {
-                                            const input = document.createElement('input');
-                                            input.type = 'file';
-                                            input.accept = 'video/*';
-                                            input.capture = 'environment';
-                                            input.onchange = (e) => {
-                                                const file = (e.target as HTMLInputElement).files?.[0];
-                                                if (file) {
-                                                    const reader = new FileReader();
-                                                    reader.onload = (e) => {
-                                                        const result = e.target?.result as string;
-                                                        setSelectedImage(result);
-                                                    };
-                                                    reader.readAsDataURL(file);
-                                                }
-                                            };
-                                            input.click();
-                                        }}
-                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
+                                        onClick={startARFilterCapture}
+                                        className="w-full flex items-center justify-center gap-2 bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-md transition-colors duration-200 text-sm"
                                     >
-                                        🎥 Record Video
+                                        🕶️ AR Filter
                                     </button>
                                 </div>
 
@@ -431,31 +640,9 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                                             };
                                             input.click();
                                         }}
-                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
+                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200 text-sm"
                                     >
                                         📤 Upload Image
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            const input = document.createElement('input');
-                                            input.type = 'file';
-                                            input.accept = 'video/*';
-                                            input.onchange = (e) => {
-                                                const file = (e.target as HTMLInputElement).files?.[0];
-                                                if (file) {
-                                                    const reader = new FileReader();
-                                                    reader.onload = (e) => {
-                                                        const result = e.target?.result as string;
-                                                        setSelectedImage(result);
-                                                    };
-                                                    reader.readAsDataURL(file);
-                                                }
-                                            };
-                                            input.click();
-                                        }}
-                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
-                                    >
-                                        🎬 Upload Video
                                     </button>
                                 </div>
                             </div>
@@ -472,36 +659,62 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                             {selectedImage && (
                                 <div className="space-y-4">
                                     <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-gray-200">
-                                        {selectedImage.startsWith('data:video/') ? (
-                                            <video
-                                                src={selectedImage}
-                                                controls
-                                                className="w-full h-full object-cover"
-                                                preload="metadata"
-                                            />
-                                        ) : (
-                                            <Image
-                                                src={selectedImage}
-                                                alt="Quest completion proof"
-                                                fill
-                                                className="object-cover"
-                                            />
-                                        )}
+                                        <Image
+                                            src={selectedImage}
+                                            alt="Quest completion proof"
+                                            fill
+                                            className="object-cover"
+                                        />
                                     </div>
-                                    <button
-                                        onClick={handleCompleteQuest}
-                                        disabled={!selectedImage || isUploading}
-                                        className={`w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-md font-medium transition-colors duration-200
-                                        ${(!selectedImage || isUploading)
-                                                ? 'opacity-50 cursor-not-allowed'
-                                                : ''
-                                            }`}
-                                    >
-                                        {isUploading ? 'Completing...' : 'Complete Quest'}
-                                    </button>
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={handleCompleteQuest}
+                                            disabled={!selectedImage || isUploading}
+                                            className={`flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-md font-medium transition-colors duration-200
+                                            ${(!selectedImage || isUploading)
+                                                    ? 'opacity-50 cursor-not-allowed'
+                                                    : ''
+                                                }`}
+                                        >
+                                            {isUploading ? 'Completing...' : 'Complete Quest'}
+                                        </button>
+                                        <button
+                                            onClick={() => shareToInstagram(selectedImage)}
+                                            disabled={!selectedImage}
+                                            className="px-4 py-2 bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:from-purple-600 hover:via-pink-600 hover:to-orange-600 text-white rounded-md font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg hover:shadow-xl"
+                                            title="Share to Instagram"
+                                        >
+                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                                            </svg>
+                                            Share
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ARフィルター撮影モーダル */}
+            {showARFilter && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm" />
+                    <div className="relative bg-white p-6 rounded-lg max-w-4xl w-full mx-4 shadow-2xl">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold">🕶️ TokyoQuest AR Filter</h2>
+                            <button
+                                onClick={cancelARFilterCapture}
+                                className="text-2xl hover:opacity-80 transition-opacity duration-200"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="text-center mb-4">
+                            <p className="text-gray-600">Use our exclusive TokyoQuest sunglasses filter!</p>
+                        </div>
+                        <ARFilterCapture onCapture={handleARFilterCapture} onCancel={cancelARFilterCapture} />
                     </div>
                 </div>
             )}

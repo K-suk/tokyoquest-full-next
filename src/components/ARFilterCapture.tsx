@@ -1,67 +1,60 @@
-"use client";
+'use client';
 
-import { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-/**
- * TokyoQuest AR Camera — Multi‑Face Stable Loader (improved association)
- * - Supports multiple faces with robust association & replacement policy
- * - Hysteresis + grace + smoothing to avoid flicker
- * - Uses CDN ESM with webpackIgnore to avoid Turbopack HMR issues
- * - Dummy overlay image for now
- */
+interface ARFilterCaptureProps {
+    onCapture: (imageData: string) => void;
+    onCancel: () => void;
+}
 
-// ----- Config --------------------------------------------------------------
-const VISION_CDN_VERSION = "0.10.14";
-const VISION_WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VISION_CDN_VERSION}/wasm`;
-const VISION_BUNDLE_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VISION_CDN_VERSION}/vision_bundle.mjs`;
-const MODEL_URL =
-    "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
-
-const RIGHT_EYE_OUTER = 33;
-const LEFT_EYE_OUTER = 263;
-
-// Multi‑face support
-const MAX_FACES = 5;             // how many faces to track simultaneously
-const ASSIGN_DIST_BASE = 0.12;   // dynamic threshold as % of min(width,height)
-const MIN_SPRITE_PX = 40;        // skip very small faces (reduces false positives) – lower so遠めの顔も拾える
-
-// Smoothing & stability
-const SMOOTH_ALPHA_POS = 0.18;   // position smoothing
-const SMOOTH_ALPHA_SIZE = 0.18;  // scale smoothing
-const SMOOTH_ALPHA_ANGLE = 0.2;  // angle smoothing
-const TARGET_DETECT_FPS = 24;    // throttle detection a bit for stability
-const COAST_MS = 350;            // keep drawing last pose this long without detections
-const SHOW_HITS = 1;             // show after N hits (snappier UX)
-const HIDE_MISSES = 8;           // hide after N misses (stickier)
-
-export default function ARCamera() {
+export default function ARFilterCapture({ onCapture, onCancel }: ARFilterCaptureProps) {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const overlayRef = useRef<HTMLCanvasElement | null>(null);
     const captureRef = useRef<HTMLCanvasElement | null>(null);
-
     const faceLandmarkerRef = useRef<any>(null);
     const lastDetTimestampRef = useRef<number>(0);
     const rafRef = useRef<number | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
 
     const [ready, setReady] = useState(false);
-    const [photoData, setPhotoData] = useState<string | null>(null);
     const [errMsg, setErrMsg] = useState<string | null>(null);
-
     const spriteImgRef = useRef<HTMLImageElement | null>(null);
 
-    // --- Multi‑face trackers --------------------------------------------------
+    // Multi-face support
+    const MAX_FACES = 5;
+    const ASSIGN_DIST_BASE = 0.12;
+    const MIN_SPRITE_PX = 40;
+
+    // Smoothing & stability
+    const SMOOTH_ALPHA_POS = 0.18;
+    const SMOOTH_ALPHA_SIZE = 0.18;
+    const SMOOTH_ALPHA_ANGLE = 0.2;
+    const TARGET_DETECT_FPS = 24;
+    const COAST_MS = 350;
+    const SHOW_HITS = 1;
+    const HIDE_MISSES = 8;
+
+    const RIGHT_EYE_OUTER = 33;
+    const LEFT_EYE_OUTER = 263;
+
+    // Multi-face trackers
     type Pose = { id: number; cx: number; cy: number; angle: number; width: number; height: number; visible: boolean; lastSeen: number; hits: number; misses: number; };
     const trackersRef = useRef<Pose[]>([]);
     const nextIdRef = useRef(1);
 
-    // Load a dummy overlay image
+    // Constants
+    const VISION_CDN_VERSION = "0.10.14";
+    const VISION_WASM_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VISION_CDN_VERSION}/wasm`;
+    const VISION_BUNDLE_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VISION_CDN_VERSION}/vision_bundle.mjs`;
+    const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+    // Load TokyoQuest sunglasses overlay
     useEffect(() => {
         const img = new Image();
         img.src = "https://dummyimage.com/600x125/000/fff.png&text=TokyoQuest";
         img.crossOrigin = "anonymous";
         img.onload = () => (spriteImgRef.current = img);
-        img.onerror = () => setErrMsg("Failed to load dummy overlay image");
+        img.onerror = () => setErrMsg("Failed to load TokyoQuest sunglasses overlay");
     }, []);
 
     useEffect(() => {
@@ -69,7 +62,7 @@ export default function ARCamera() {
 
         const init = async () => {
             try {
-                // 1) Start camera (HTTPS/localhost required)
+                // 1) Start camera
                 const isHttps = location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1";
                 if (!isHttps) throw new Error("Camera requires HTTPS or localhost.");
 
@@ -82,13 +75,30 @@ export default function ARCamera() {
                 videoRef.current.srcObject = stream;
                 (videoRef.current as any).muted = true;
                 (videoRef.current as any).playsInline = true;
-                await videoRef.current.play();
 
-                // 2) Load MediaPipe via CDN with native import() (bypass bundler)
+                // ビデオの読み込みを待つ
+                await new Promise<void>((resolve) => {
+                    if (videoRef.current && videoRef.current.readyState >= 2) {
+                        resolve();
+                    } else if (videoRef.current) {
+                        videoRef.current.addEventListener('loadedmetadata', () => resolve(), { once: true });
+                    } else {
+                        resolve(); // fallback
+                    }
+                });
+
+                try {
+                    await videoRef.current.play();
+                } catch (playError) {
+                    console.warn('Video play interrupted:', playError);
+                    // プレイが中断された場合は無視して続行
+                }
+
+                // 2) Load MediaPipe via CDN
                 const vision: any = await loadVisionBundle();
                 const { FilesetResolver, FaceLandmarker } = vision;
 
-                // 3) Init Landmarker (multi‑face)
+                // 3) Init Landmarker
                 const filesetResolver = await FilesetResolver.forVisionTasks(VISION_WASM_BASE);
                 faceLandmarkerRef.current = await FaceLandmarker.createFromOptions(filesetResolver, {
                     baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
@@ -154,7 +164,7 @@ export default function ARCamera() {
             if (!ctx) return;
             ctx.clearRect(0, 0, c.width, c.height);
 
-            // --- Build detections from face landmarks ---------------------------
+            // Build detections from face landmarks
             type Det = { cx: number; cy: number; angle: number; width: number; height: number };
             const dets: Det[] = [];
             for (const lm of faces) {
@@ -168,15 +178,14 @@ export default function ARCamera() {
                 const eyeDist = Math.hypot(dx, dy);
                 const desiredWidth = eyeDist * 2.4;
                 const desiredHeight = desiredWidth * ((img.height || 200) / (img.width || 600));
-                if (desiredWidth < MIN_SPRITE_PX) continue; // skip too small
+                if (desiredWidth < MIN_SPRITE_PX) continue;
                 const cx = (lx + rx) / 2;
                 const cy = (ly + ry) / 2 + eyeDist * 0.15;
                 dets.push({ cx, cy, angle, width: desiredWidth, height: desiredHeight });
             }
-            // Prioritize larger faces for assignment stability
             dets.sort((a, b) => b.width - a.width);
 
-            // --- Associate detections to existing trackers (greedy nearest) -----
+            // Associate detections to existing trackers
             const trackers = trackersRef.current;
             const usedDet = new Set<number>();
             const assignDistPx = Math.min(c.width, c.height) * ASSIGN_DIST_BASE;
@@ -205,14 +214,13 @@ export default function ARCamera() {
                 }
             }
 
-            // --- Spawn or replace trackers for unmatched detections -------------
+            // Spawn or replace trackers for unmatched detections
             for (let i = 0; i < dets.length; i++) {
                 if (usedDet.has(i)) continue;
                 const d = dets[i];
                 if (trackers.length < MAX_FACES) {
                     trackers.push({ id: nextIdRef.current++, cx: d.cx, cy: d.cy, angle: d.angle, width: d.width, height: d.height, visible: false, lastSeen: now, hits: 1, misses: 0 });
                 } else {
-                    // Replace the stalest non-visible tracker
                     let worst = -1, worstScore = -Infinity;
                     for (let k = 0; k < trackers.length; k++) {
                         const t = trackers[k];
@@ -225,12 +233,12 @@ export default function ARCamera() {
                 }
             }
 
-            // --- Cull long-gone trackers ---------------------------------------
+            // Cull long-gone trackers
             for (let i = trackers.length - 1; i >= 0; i--) {
                 if (!trackers[i].visible && now - trackers[i].lastSeen > COAST_MS * 4) trackers.splice(i, 1);
             }
 
-            // --- Draw all visible (or within grace) trackers --------------------
+            // Draw all visible trackers
             for (const t of trackers) {
                 const within = now - t.lastSeen <= COAST_MS;
                 if (!(t.visible || within)) continue;
@@ -246,13 +254,29 @@ export default function ARCamera() {
 
         return () => {
             stopped = true;
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            try { faceLandmarkerRef.current?.close?.(); } catch { }
-            if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+            if (rafRef.current) {
+                cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
+            }
+            try {
+                faceLandmarkerRef.current?.close?.();
+                faceLandmarkerRef.current = null;
+            } catch { }
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach((t) => {
+                    t.stop();
+                    t.enabled = false;
+                });
+                streamRef.current = null;
+            }
+            if (videoRef.current) {
+                videoRef.current.pause();
+                videoRef.current.srcObject = null;
+            }
         };
     }, []);
 
-    const onCapture = () => {
+    const handleCapture = () => {
         const v = videoRef.current;
         const cap = captureRef.current;
         const overlay = overlayRef.current;
@@ -266,34 +290,49 @@ export default function ARCamera() {
         ctx.drawImage(v, 0, 0, cap.width, cap.height);
         ctx.drawImage(overlay, 0, 0, cap.width, cap.height);
 
-        setPhotoData(cap.toDataURL("image/png"));
+        const imageData = cap.toDataURL("image/png");
+        onCapture(imageData);
     };
 
     return (
-        <div style={styles.root}>
-            <div style={styles.card}>
-                <h1 style={styles.title}>TokyoQuest AR Camera</h1>
-                <div style={styles.cameraWrap}>
-                    <video ref={videoRef} style={styles.video} autoPlay playsInline muted />
-                    <canvas ref={overlayRef} style={styles.overlay} />
-                </div>
-                <div style={styles.controls}>
-                    <button onClick={onCapture} style={styles.captureBtn} aria-label="Capture" />
-                </div>
-                {photoData && (
-                    <div style={styles.preview}>
-                        <img src={photoData} alt="Captured with AR" style={styles.previewImg} />
+        <div className="space-y-4">
+            <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-gray-200 bg-black">
+                <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" autoPlay playsInline muted />
+                <canvas ref={overlayRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-white bg-black bg-opacity-50 px-4 py-2 rounded-full text-sm">
+                        Position your face in the center
                     </div>
-                )}
-                {!ready && <p style={styles.hint}>Initializing camera & model…</p>}
-                {errMsg && <p style={styles.error}>⚠️ {errMsg}</p>}
+                </div>
             </div>
+
+            <div className="flex gap-4 justify-center">
+                <button
+                    onClick={handleCapture}
+                    disabled={!ready}
+                    className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    📸 Capture with Filter
+                </button>
+                <button
+                    onClick={onCancel}
+                    className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium"
+                >
+                    Cancel
+                </button>
+            </div>
+
+            {!ready && <p className="text-center text-gray-600">🔄 Initializing camera & AI model…</p>}
+            {errMsg && <p className="text-center text-red-600">⚠️ {errMsg}</p>}
         </div>
     );
 }
 
-// ---- Loader that survives HMR --------------------------------------------
+// Loader that survives HMR
 async function loadVisionBundle(): Promise<any> {
+    const VISION_CDN_VERSION = "0.10.14";
+    const VISION_BUNDLE_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VISION_CDN_VERSION}/vision_bundle.mjs`;
+
     const w = window as any;
     if (w.__mp_vision) return w.__mp_vision;
     if (w.__mp_vision_promise) return w.__mp_vision_promise;
@@ -311,19 +350,3 @@ function slerpAngle(a: number, b: number, t: number) {
     if (diff < -Math.PI) diff += 2 * Math.PI;
     return a + diff * t;
 }
-
-// ----- Styles --------------------------------------------------------------
-const styles: Record<string, React.CSSProperties> = {
-    root: { fontFamily: "Inter, sans-serif", background: "#f0f0f5", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" },
-    card: { background: "#fff", borderRadius: 20, boxShadow: "0 10px 30px rgba(0,0,0,0.1)", width: "92%", maxWidth: 460, padding: 20 },
-    title: { margin: "8px 0 16px", fontSize: "1.25rem", fontWeight: 700, color: "#4a4a4a", textAlign: "center" },
-    cameraWrap: { position: "relative", width: "100%", paddingTop: "100%", background: "#000", borderRadius: 16, overflow: "hidden" },
-    video: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "100%", height: "100%", objectFit: "cover" },
-    overlay: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" },
-    controls: { display: "flex", justifyContent: "center", marginTop: 16 },
-    captureBtn: { backgroundColor: "#f7a040", border: "5px solid #fff", width: 72, height: 72, borderRadius: "50%", cursor: "pointer", boxShadow: "0 4px 15px rgba(247,160,64,0.4)" },
-    preview: { marginTop: 16, textAlign: "center" },
-    previewImg: { maxWidth: "100%", borderRadius: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.12)" },
-    hint: { textAlign: "center", color: "#666", marginTop: 8 },
-    error: { textAlign: "center", color: "#b00020", marginTop: 8 },
-};

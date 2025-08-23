@@ -106,6 +106,44 @@ export function getEnv(): Env {
   };
 }
 
+// 機密情報のログ出力防止
+export function safeLog(obj: any, sensitiveKeys: string[] = []): any {
+  if (typeof obj !== "object" || obj === null) {
+    return obj;
+  }
+
+  const result = { ...obj };
+  const defaultSensitiveKeys = [
+    "password",
+    "secret",
+    "token",
+    "key",
+    "credential",
+    "DATABASE_URL",
+    "GOOGLE_CLIENT_SECRET",
+    "NEXTAUTH_SECRET",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "ADMIN_SECURITY_TOKEN",
+  ];
+
+  const allSensitiveKeys = [...defaultSensitiveKeys, ...sensitiveKeys];
+
+  allSensitiveKeys.forEach((key) => {
+    if (key in result) {
+      result[key] = "[REDACTED]";
+    }
+  });
+
+  return result;
+}
+
+// 開発環境でのみ使用するデバッグ関数
+export function debugLog(message: string, data?: any) {
+  if (process.env.NODE_ENV === "development") {
+    console.log(`[DEBUG] ${message}`, data ? safeLog(data) : "");
+  }
+}
+
 // アプリケーション起動時に環境変数を検証
 if (typeof window === "undefined") {
   try {
@@ -114,7 +152,7 @@ if (typeof window === "undefined") {
       console.log("✅ Environment variables validated successfully");
     }
   } catch (error) {
-    console.error("❌ Environment validation failed:", error);
+    console.error("❌ Environment validation failed:", safeLog(error));
     process.exit(1);
   }
 }

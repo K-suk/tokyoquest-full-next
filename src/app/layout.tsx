@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 import type { ReactNode } from "react";
 import ConditionalNavbar from "@/components/ConditionalNavbar";
+import { headers } from "next/headers";
 
 export const metadata = {
   title: 'TokyoQuest',
@@ -38,8 +39,40 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
+  // middlewareで設定されたnonceを取得
+  const headersList = await headers();
+  const nonce = headersList.get('x-nonce') || '';
+
   return (
     <html lang="ja" suppressHydrationWarning className="light">
+      <head>
+        {/* インラインスクリプトにnonceを適用（必要な場合） */}
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                // テーマ設定などの最小限のインラインスクリプト
+                const theme = localStorage.getItem('theme') || 'light';
+                document.documentElement.className = theme;
+                document.body.className = theme;
+              } catch (e) {
+                console.warn('Theme initialization failed:', e);
+              }
+            `
+          }}
+        />
+        {/* インラインスタイルにnonceを適用（必要な場合） */}
+        <style
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `
+              /* クリティカルCSSなどの最小限のインラインスタイル */
+              .loading { opacity: 0.7; }
+            `
+          }}
+        />
+      </head>
       <body className="light">
         <Providers>
           <ConditionalNavbar />

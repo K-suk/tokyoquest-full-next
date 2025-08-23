@@ -5,6 +5,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
 import { questRateLimiter, withRateLimit } from "@/lib/rate-limit";
+import { fileTypeFromBuffer } from "file-type";
+import { securityLogger } from "@/lib/logger";
 
 // キャッシュを無効化
 export const dynamic = "force-dynamic";
@@ -24,6 +26,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  let questId: number | null = null;
+
   try {
     // 1) レート制限チェック
     const ip =
@@ -48,7 +52,7 @@ export async function POST(
     }
 
     const { id } = await params;
-    const questId = parseInt(id);
+    questId = parseInt(id);
     if (isNaN(questId) || questId <= 0) {
       return NextResponse.json({ error: "Invalid quest ID" }, { status: 400 });
     }
@@ -75,10 +79,10 @@ export async function POST(
     }
 
     // 6) Base64データの検証（画像または動画）
-    if (
-      !imageData.startsWith("data:image/") &&
-      !imageData.startsWith("data:video/")
-    ) {
+    const isImage = imageData.startsWith("data:image/");
+    const isVideo = imageData.startsWith("data:video/");
+
+    if (!isImage && !isVideo) {
       return NextResponse.json(
         { error: "Invalid media format. Only images and videos are allowed." },
         { status: 400 }
@@ -88,14 +92,90 @@ export async function POST(
     // 7) データサイズの制限（10MB for videos, 5MB for images）
     const base64Data = imageData.split(",")[1];
     const dataSize = Math.ceil((base64Data.length * 3) / 4);
-    const maxSize = imageData.startsWith("data:video/")
-      ? 10 * 1024 * 1024
-      : 5 * 1024 * 1024;
-    const maxSizeMB = imageData.startsWith("data:video/") ? 10 : 5;
+    const maxSize = isVideo ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+    const maxSizeMB = isVideo ? 10 : 5;
 
     if (dataSize > maxSize) {
       return NextResponse.json(
         { error: `Media size must be less than ${maxSizeMB}MB` },
+        { status: 413 }
+      );
+    }
+
+    // 8) ファイルシグネチャ検証（Base64からBufferに変換）
+    let buffer: Buffer;
+    try {
+      buffer = Buffer.from(base64Data, 'base64');
+    } catch (error) {
+      securityLogger.logFileUploadViolation(
+        request.headers.get("x-forwarded-for") || "unknown",
+        request.headers.get("user-agent") || "unknown",
+        "base64_decode_failed",
+        "Failed to decode base64 data"
+      );
+      return NextResponse.json(
+        { error: "Invalid media data format" },
+        { status: 400 }
+      );
+    }
+
+    // 9) MIMEタイプ検証（file-typeによるチェック）
+    const detectedType = await fileTypeFromBuffer(buffer);
+
+    if (!detectedType) {
+      securityLogger.logFileUploadViolation(
+        request.headers.get("x-forwarded-for") || "unknown",
+        request.headers.get("user-agent") || "unknown",
+        "invalid_file_signature",
+        "File signature validation failed"
+      );
+      return NextResponse.json(
+        { error: "Invalid file format detected" },
+        { status: 400 }
+      );
+    }
+
+    // 10) 許可されたMIMEタイプのチェック
+    const allowedImageTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const allowedVideoTypes = ["video/mp4", "video/quicktime", "video/x-msvideo"];
+
+    if (isImage && !allowedImageTypes.includes(detectedType.mime)) {
+      securityLogger.logFileUploadViolation(
+        request.headers.get("x-forwarded-for") || "unknown",
+        request.headers.get("user-agent") || "unknown",
+        `disallowed_image_type_${detectedType.mime}`,
+        "Disallowed image MIME type"
+      );
+      return NextResponse.json(
+        { error: `Image type ${detectedType.mime} is not allowed` },
+        { status: 400 }
+      );
+    }
+
+    if (isVideo && !allowedVideoTypes.includes(detectedType.mime)) {
+      securityLogger.logFileUploadViolation(
+        request.headers.get("x-forwarded-for") || "unknown",
+        request.headers.get("user-agent") || "unknown",
+        `disallowed_video_type_${detectedType.mime}`,
+        "Disallowed video MIME type"
+      );
+      return NextResponse.json(
+        { error: `Video type ${detectedType.mime} is not allowed` },
+        { status: 400 }
+      );
+    }
+
+    // 11) 拡張子とMIMEタイプの整合性チェック
+    const expectedMimeType = isImage ? `image/${detectedType.ext}` : `video/${detectedType.ext}`;
+    if (detectedType.mime !== expectedMimeType) {
+      securityLogger.logFileUploadViolation(
+        request.headers.get("x-forwarded-for") || "unknown",
+        request.headers.get("user-agent") || "unknown",
+        "mime_extension_mismatch",
+        `MIME type ${detectedType.mime} doesn't match extension ${detectedType.ext}`
+      );
+      return NextResponse.json(
+        { error: "File extension and content type mismatch" },
         { status: 400 }
       );
     }
@@ -165,9 +245,17 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error("Error completing quest:", error);
+    // エラーログ記録（機密情報を除外）
+    console.error("Quest completion error:", {
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+      questId: questId || "unknown",
+      timestamp: new Date().toISOString(),
+    });
+
+    // 汎用的なエラーメッセージのみを返す
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "An error occurred while processing your request" },
       { status: 500 }
     );
   }

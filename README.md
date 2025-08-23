@@ -28,7 +28,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 - Users can complete quests by uploading photos
 - Quest completion data is stored in the database
 - Users earn experience points upon completion
-- Completion images are stored as Base64 data
+- Completion images are stored in Supabase Storage
 
 ### Admin Panel
 - Staff members can view all quest completions

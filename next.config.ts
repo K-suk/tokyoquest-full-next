@@ -6,6 +6,18 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "react-icons"],
   },
+  // MediaPipe WASMファイルの処理
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+      };
+    }
+    return config;
+  },
   images: {
     // 既存のドメインに加え、ピクセル指定パスのみを許可
     domains: [
@@ -96,7 +108,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
+              "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
               "style-src 'self' 'unsafe-inline'",
               // 画像は picsum.photos と Unsplash と Google Photos と Supabase Storage を許可
               "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com https://photos.app.goo.gl https://photos.fife.usercontent.google.com https://*.supabase.co",
@@ -157,6 +169,25 @@ const nextConfig: NextConfig = {
               "img-src 'self' data:",
               "font-src 'self' data:",
               "connect-src 'self'",
+            ].join("; "),
+          },
+        ],
+      },
+      // ARページ用のヘッダー（MediaPipe対応）
+      {
+        source: "/ar",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://storage.googleapis.com",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: https:",
+              "font-src 'self' data:",
+              "connect-src 'self' https:",
+              "worker-src 'self' blob:",
+              "wasm-unsafe-eval",
             ].join("; "),
           },
         ],
