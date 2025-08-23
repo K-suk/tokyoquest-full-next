@@ -4,7 +4,6 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image';
 import Link from 'next/link';
 import { QuestDTO } from '@/lib/dto';
-import ARFilterCapture from '@/components/ARFilterCapture';
 
 interface QuestMeta extends Omit<QuestDTO, 'location' | 'badget'> {
     badget?: string;
@@ -57,7 +56,6 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
     const [isUploading, setIsUploading] = useState(false);
     const [showCompleteModal, setShowCompleteModal] = useState(false);
     const [modalAnimation, setModalAnimation] = useState(false);
-    const [showARFilter, setShowARFilter] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fetchQuestStatus = useCallback(async () => {
@@ -261,24 +259,7 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
         setTimeout(() => {
             setShowCompleteModal(false);
             setSelectedImage(null);
-            setShowARFilter(false);
         }, 300);
-    };
-
-    /** ARフィルター撮影を開始 */
-    const startARFilterCapture = () => {
-        setShowARFilter(true);
-    };
-
-    /** ARフィルター撮影をキャンセル */
-    const cancelARFilterCapture = () => {
-        setShowARFilter(false);
-    };
-
-    /** ARフィルター撮影完了時のコールバック */
-    const handleARFilterCapture = (imageData: string) => {
-        setSelectedImage(imageData);
-        setShowARFilter(false);
     };
 
 
@@ -395,57 +376,54 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                                 ✕
                             </button>
                         </div>
-                        <div className="space-y-4">
-                            <p className="text-gray-600 mb-4">
-                                Take a photo or upload an image to complete this quest!
-                            </p>
+                        <div className="space-y-6">
+                            <div className="text-center">
+                                <p className="text-gray-600 mb-2">
+                                    Take a photo or upload an image to complete this quest!
+                                </p>
+                                <div className="w-16 h-1 bg-gray-300 mx-auto rounded-full"></div>
+                            </div>
 
-                            <div className="grid grid-cols-3 gap-4 mb-4">
+                            <div className="flex flex-col sm:flex-row gap-4 justify-center">
                                 {/* 撮影オプション */}
-                                <div className="space-y-2">
-                                    <button
-                                        onClick={handleCaptureImage}
-                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200 text-sm"
-                                    >
-                                        📷 Take Photo
-                                    </button>
-                                </div>
-
-                                {/* ARフィルター撮影オプション */}
-                                <div className="space-y-2">
-                                    <button
-                                        onClick={startARFilterCapture}
-                                        className="w-full flex items-center justify-center gap-2 bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-md transition-colors duration-200 text-sm"
-                                    >
-                                        🕶️ AR Filter
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={handleCaptureImage}
+                                    className="flex-1 max-w-xs mx-auto sm:mx-0 flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                >
+                                    <div className="text-2xl">📷</div>
+                                    <div className="text-left">
+                                        <div className="font-semibold">Take Photo</div>
+                                        <div className="text-xs opacity-90">Use camera</div>
+                                    </div>
+                                </button>
 
                                 {/* アップロードオプション */}
-                                <div className="space-y-2">
-                                    <button
-                                        onClick={() => {
-                                            const input = document.createElement('input');
-                                            input.type = 'file';
-                                            input.accept = 'image/*';
-                                            input.onchange = (e) => {
-                                                const file = (e.target as HTMLInputElement).files?.[0];
-                                                if (file) {
-                                                    const reader = new FileReader();
-                                                    reader.onload = (e) => {
-                                                        const result = e.target?.result as string;
-                                                        setSelectedImage(result);
-                                                    };
-                                                    reader.readAsDataURL(file);
-                                                }
-                                            };
-                                            input.click();
-                                        }}
-                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200 text-sm"
-                                    >
-                                        📤 Upload Image
-                                    </button>
-                                </div>
+                                <button
+                                    onClick={() => {
+                                        const input = document.createElement('input');
+                                        input.type = 'file';
+                                        input.accept = 'image/*';
+                                        input.onchange = (e) => {
+                                            const file = (e.target as HTMLInputElement).files?.[0];
+                                            if (file) {
+                                                const reader = new FileReader();
+                                                reader.onload = (e) => {
+                                                    const result = e.target?.result as string;
+                                                    setSelectedImage(result);
+                                                };
+                                                reader.readAsDataURL(file);
+                                            }
+                                        };
+                                        input.click();
+                                    }}
+                                    className="flex-1 max-w-xs mx-auto sm:mx-0 flex items-center justify-center gap-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                >
+                                    <div className="text-2xl">📤</div>
+                                    <div className="text-left">
+                                        <div className="font-semibold">Upload Image</div>
+                                        <div className="text-xs opacity-90">From gallery</div>
+                                    </div>
+                                </button>
                             </div>
 
                             <input
@@ -458,28 +436,42 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                             />
 
                             {selectedImage && (
-                                <div className="space-y-4">
-                                    <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-gray-200">
-                                        <Image
+                                <div className="space-y-6">
+                                    <div className="text-center">
+                                        <div className="w-16 h-1 bg-green-300 mx-auto rounded-full mb-2"></div>
+                                        <p className="text-green-600 font-medium">Image Selected ✓</p>
+                                    </div>
+
+                                    <div className="relative w-full overflow-hidden rounded-xl border-2 border-green-200 bg-gray-50 shadow-lg">
+                                        <img
                                             src={selectedImage}
                                             alt="Quest completion proof"
-                                            fill
-                                            className="object-cover"
+                                            className="w-full h-auto max-h-96 object-contain mx-auto"
+                                            style={{
+                                                aspectRatio: 'auto',
+                                                display: 'block'
+                                            }}
                                         />
                                     </div>
-                                    <div className="flex gap-3">
+
+                                    <div className="flex gap-4">
+                                        <button
+                                            onClick={() => setSelectedImage(null)}
+                                            className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-xl font-medium transition-colors duration-200"
+                                        >
+                                            ↺ Choose Different Image
+                                        </button>
                                         <button
                                             onClick={handleCompleteQuest}
                                             disabled={!selectedImage || isUploading}
-                                            className={`flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-md font-medium transition-colors duration-200
+                                            className={`flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105
                                             ${(!selectedImage || isUploading)
-                                                    ? 'opacity-50 cursor-not-allowed'
+                                                    ? 'opacity-50 cursor-not-allowed transform-none'
                                                     : ''
                                                 }`}
                                         >
-                                            {isUploading ? 'Completing...' : 'Complete Quest'}
+                                            {isUploading ? '🔄 Completing...' : '🎉 Complete Quest'}
                                         </button>
-
                                     </div>
                                 </div>
                             )}
@@ -488,27 +480,7 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                 </div>
             )}
 
-            {/* ARフィルター撮影モーダル */}
-            {showARFilter && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm" />
-                    <div className="relative bg-white p-6 rounded-lg max-w-4xl w-full mx-4 shadow-2xl">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">🕶️ TokyoQuest AR Filter</h2>
-                            <button
-                                onClick={cancelARFilterCapture}
-                                className="text-2xl hover:opacity-80 transition-opacity duration-200"
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        <div className="text-center mb-4">
-                            <p className="text-gray-600">Use our exclusive TokyoQuest sunglasses filter!</p>
-                        </div>
-                        <ARFilterCapture onCapture={handleARFilterCapture} onCancel={cancelARFilterCapture} />
-                    </div>
-                </div>
-            )}
+
 
             {/* =========================================== */}
             {/* 4. Quest Detail（静的部分） */}
