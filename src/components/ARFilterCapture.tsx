@@ -2,6 +2,14 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
+// MediaPipe types for window object
+declare global {
+    interface Window {
+        FaceLandmarker?: any;
+        FilesetResolver?: any;
+    }
+}
+
 interface ARFilterCaptureProps {
     onCapture: (imageData: string) => void;
     onCancel: () => void;
@@ -18,6 +26,7 @@ export default function ARFilterCapture({ onCapture, onCancel }: ARFilterCapture
 
     const [ready, setReady] = useState(false);
     const [errMsg, setErrMsg] = useState<string | null>(null);
+    const [fallbackMode, setFallbackMode] = useState(false);
     const spriteImgRef = useRef<HTMLImageElement | null>(null);
 
     // Multi-face support
@@ -94,22 +103,33 @@ export default function ARFilterCapture({ onCapture, onCancel }: ARFilterCapture
                     // プレイが中断された場合は無視して続行
                 }
 
-                // 2) Load MediaPipe via CDN
-                const vision: any = await loadVisionBundle();
-                const { FilesetResolver, FaceLandmarker } = vision;
+                // 2) Load MediaPipe via CDN (CSP compliant)
+                try {
+                    const vision: any = await loadVisionBundle();
+                    const { FilesetResolver, FaceLandmarker } = vision;
 
-                // 3) Init Landmarker
-                const filesetResolver = await FilesetResolver.forVisionTasks(VISION_WASM_BASE);
-                faceLandmarkerRef.current = await FaceLandmarker.createFromOptions(filesetResolver, {
-                    baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
-                    runningMode: "VIDEO",
-                    numFaces: MAX_FACES,
-                });
+                    if (!FilesetResolver || !FaceLandmarker) {
+                        throw new Error('MediaPipe components failed to load');
+                    }
 
-                // 4) Canvases & loop
-                setupCanvases();
-                setReady(true);
-                startRenderLoop();
+                    // 3) Init Landmarker
+                    const filesetResolver = await FilesetResolver.forVisionTasks(VISION_WASM_BASE);
+                    faceLandmarkerRef.current = await FaceLandmarker.createFromOptions(filesetResolver, {
+                        baseOptions: { modelAssetPath: MODEL_URL, delegate: "GPU" },
+                        runningMode: "VIDEO",
+                        numFaces: MAX_FACES,
+                    });
+
+                    // 4) Canvases & loop
+                    setupCanvases();
+                    setReady(true);
+                    startRenderLoop();
+                } catch (mediaPipeError) {
+                    console.warn('MediaPipe failed to load, falling back to simple camera mode:', mediaPipeError);
+                    setFallbackMode(true);
+                    setupCanvases();
+                    setReady(true);
+                }
             } catch (e: any) {
                 console.error(e);
                 setErrMsg(e?.message ?? String(e));
@@ -149,7 +169,10 @@ export default function ARFilterCapture({ onCapture, onCancel }: ARFilterCapture
             const c = overlayRef.current;
             const faceLandmarker = faceLandmarkerRef.current;
             const img = spriteImgRef.current;
-            if (!v || !c || !faceLandmarker || !img) return;
+            if (!v || !c) return;
+
+            // Skip AR processing in fallback mode
+            if (fallbackMode || !faceLandmarker || !img) return;
 
             const now = performance.now();
             const minDelta = 1000 / TARGET_DETECT_FPS;
@@ -280,15 +303,20 @@ export default function ARFilterCapture({ onCapture, onCancel }: ARFilterCapture
         const v = videoRef.current;
         const cap = captureRef.current;
         const overlay = overlayRef.current;
-        if (!v || !cap || !overlay) return;
+        if (!v || !cap) return;
 
         cap.width = v.videoWidth || cap.width;
         cap.height = v.videoHeight || cap.height;
         const ctx = cap.getContext("2d");
         if (!ctx) return;
 
+        // Draw video frame
         ctx.drawImage(v, 0, 0, cap.width, cap.height);
-        ctx.drawImage(overlay, 0, 0, cap.width, cap.height);
+
+        // Draw overlay only if not in fallback mode and overlay exists
+        if (!fallbackMode && overlay) {
+            ctx.drawImage(overlay, 0, 0, cap.width, cap.height);
+        }
 
         const imageData = cap.toDataURL("image/png");
         onCapture(imageData);
@@ -312,7 +340,7 @@ export default function ARFilterCapture({ onCapture, onCancel }: ARFilterCapture
                     disabled={!ready}
                     className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    📸 Capture with Filter
+                    📸 {fallbackMode ? 'Capture Photo' : 'Capture with Filter'}
                 </button>
                 <button
                     onClick={onCancel}
@@ -323,12 +351,13 @@ export default function ARFilterCapture({ onCapture, onCancel }: ARFilterCapture
             </div>
 
             {!ready && <p className="text-center text-gray-600">🔄 Initializing camera & AI model…</p>}
+            {fallbackMode && <p className="text-center text-yellow-600">⚠️ AR filter unavailable, using simple camera mode</p>}
             {errMsg && <p className="text-center text-red-600">⚠️ {errMsg}</p>}
         </div>
     );
 }
 
-// Loader that survives HMR
+// Loader that survives HMR - CSP compliant version
 async function loadVisionBundle(): Promise<any> {
     const VISION_CDN_VERSION = "0.10.14";
     const VISION_BUNDLE_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VISION_CDN_VERSION}/vision_bundle.mjs`;
@@ -337,9 +366,63 @@ async function loadVisionBundle(): Promise<any> {
     if (w.__mp_vision) return w.__mp_vision;
     if (w.__mp_vision_promise) return w.__mp_vision_promise;
 
-    const p = import(/* webpackIgnore: true */ VISION_BUNDLE_URL)
-        .then((m) => { (window as any).__mp_vision = m; return m; })
-        .catch((e) => { delete (window as any).__mp_vision_promise; throw e; });
+    // CSP compliant loading using script tag instead of dynamic import
+    const p = new Promise<any>((resolve, reject) => {
+        // Check if already loaded
+        if (window.FaceLandmarker) {
+            const vision = {
+                FilesetResolver: window.FilesetResolver,
+                FaceLandmarker: window.FaceLandmarker
+            };
+            w.__mp_vision = vision;
+            resolve(vision);
+            return;
+        }
+
+        // Load script dynamically
+        const script = document.createElement('script');
+        script.src = VISION_BUNDLE_URL;
+        script.type = 'module';
+
+        // Add timeout for script loading
+        const timeout = setTimeout(() => {
+            reject(new Error('MediaPipe bundle loading timeout'));
+        }, 10000); // 10 second timeout
+
+        script.onload = () => {
+            clearTimeout(timeout);
+            // Wait for module to initialize with retry mechanism
+            let attempts = 0;
+            const maxAttempts = 50; // 5 seconds max wait
+
+            const checkReady = () => {
+                attempts++;
+                if (window.FaceLandmarker && window.FilesetResolver) {
+                    const vision = {
+                        FilesetResolver: window.FilesetResolver,
+                        FaceLandmarker: window.FaceLandmarker
+                    };
+                    w.__mp_vision = vision;
+                    resolve(vision);
+                } else if (attempts < maxAttempts) {
+                    setTimeout(checkReady, 100);
+                } else {
+                    reject(new Error('MediaPipe failed to initialize within timeout'));
+                }
+            };
+
+            setTimeout(checkReady, 100);
+        };
+
+        script.onerror = () => {
+            clearTimeout(timeout);
+            delete w.__mp_vision_promise;
+            reject(new Error('Failed to load MediaPipe bundle'));
+        };
+
+        document.head.appendChild(script);
+    });
+
     w.__mp_vision_promise = p;
     return p;
 }
