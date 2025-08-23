@@ -78,7 +78,7 @@ function LoginPageContent() {
     };
 
     return (
-        <div className="fixed inset-0 w-full h-full overflow-hidden" style={{ height: '100dvh' }}>
+        <div className="fixed inset-0 w-full h-full overflow-hidden h-screen">
             {/* セキュリティ: CSP nonce対応 */}
             <meta httpEquiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;" />
 
@@ -86,26 +86,28 @@ function LoginPageContent() {
             <link rel="preload" as="image" href="/images/login-bg.png" fetchPriority="high" />
             <link rel="preload" as="image" href="/images/tokyoquest_logo.png" fetchPriority="high" />
 
+
+
             {/* 背景イメージ */}
             <div className="absolute inset-0 z-0">
-                <div className="w-full h-full bg-black opacity-70">
-                    {!imageError.background && (
-                        <Image
-                            src="/images/login-bg.png"
-                            alt="Tokyo city collage"
-                            fill
-                            className="object-cover"
-                            priority
-                            sizes="100vw"
-                            quality={85}
-                            fetchPriority="high"
-                            onError={() => {
-                                console.error('Background image failed to load');
-                                setImageError(prev => ({ ...prev, background: true }));
-                            }}
-                        />
-                    )}
-                </div>
+                {!imageError.background && (
+                    <Image
+                        src="/images/login-bg.png"
+                        alt="Tokyo city collage"
+                        fill
+                        className="object-cover object-center w-full h-full"
+                        priority
+                        sizes="100vw"
+                        quality={90}
+                        fetchPriority="high"
+                        onError={() => {
+                            console.error('Background image failed to load');
+                            setImageError(prev => ({ ...prev, background: true }));
+                        }}
+                    />
+                )}
+                {/* 背景オーバーレイ - グラデーションでテキストの可読性向上 */}
+                <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-black/20 to-black/40"></div>
             </div>
 
             <div className="relative z-10 w-full h-full flex flex-col items-center justify-center px-4">
@@ -212,23 +214,23 @@ function LoginPageContent() {
 // ローディングフォールバックコンポーネント
 function LoginPageFallback() {
     return (
-        <div className="fixed inset-0 w-full h-full overflow-hidden" style={{ height: '100dvh' }}>
+        <div className="fixed inset-0 w-full h-full overflow-hidden h-screen">
             <div className="absolute inset-0 z-0">
-                <div className="w-full h-full bg-black opacity-70">
-                    <Image
-                        src="/images/login-bg.png"
-                        alt="Tokyo city collage"
-                        fill
-                        className="object-cover"
-                        priority
-                        sizes="100vw"
-                        quality={85}
-                        onError={(e) => {
-                            console.error('Fallback background image failed to load');
-                            // エラー時は背景色のみで表示
-                        }}
-                    />
-                </div>
+                <Image
+                    src="/images/login-bg.png"
+                    alt="Tokyo city collage"
+                    fill
+                    className="object-cover object-center w-full h-full"
+                    priority
+                    sizes="100vw"
+                    quality={90}
+                    onError={(e) => {
+                        console.error('Fallback background image failed to load');
+                        // エラー時は背景色のみで表示
+                    }}
+                />
+                {/* 背景オーバーレイ - グラデーションでテキストの可読性向上 */}
+                <div className="absolute inset-0 bg-gradient-to-br from-black/30 via-black/20 to-black/40"></div>
             </div>
             <div className="relative z-10 w-full h-full flex flex-col items-center justify-center px-4">
                 <div className="text-white font-bold mb-4 sm:mb-6">

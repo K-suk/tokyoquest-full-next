@@ -270,23 +270,40 @@ export default function ARCamera() {
     };
 
     return (
-        <div style={styles.root}>
-            <div style={styles.card}>
-                <h1 style={styles.title}>TokyoQuest AR Camera</h1>
-                <div style={styles.cameraWrap}>
-                    <video ref={videoRef} style={styles.video} autoPlay playsInline muted />
-                    <canvas ref={overlayRef} style={styles.overlay} />
+        <div className="font-sans bg-gray-50 min-h-screen flex items-center justify-center">
+            <div className="bg-white rounded-2xl shadow-lg w-[92%] max-w-[460px] p-5">
+                <h1 className="my-2 text-xl font-bold text-gray-700 text-center">TokyoQuest AR Camera</h1>
+                <div className="relative w-full pt-[100%] bg-black rounded-2xl overflow-hidden">
+                    <video
+                        ref={videoRef}
+                        className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full h-full object-cover"
+                        autoPlay
+                        playsInline
+                        muted
+                    />
+                    <canvas
+                        ref={overlayRef}
+                        className="absolute top-0 left-0 w-full h-full pointer-events-none"
+                    />
                 </div>
-                <div style={styles.controls}>
-                    <button onClick={onCapture} style={styles.captureBtn} aria-label="Capture" />
+                <div className="flex justify-center mt-4">
+                    <button
+                        onClick={onCapture}
+                        className="bg-orange-400 border-4 border-white w-18 h-18 rounded-full cursor-pointer shadow-lg shadow-orange-400/40"
+                        aria-label="Capture"
+                    />
                 </div>
                 {photoData && (
-                    <div style={styles.preview}>
-                        <img src={photoData} alt="Captured with AR" style={styles.previewImg} />
+                    <div className="mt-4 text-center">
+                        <img
+                            src={photoData}
+                            alt="Captured with AR"
+                            className="max-w-full rounded-xl shadow-lg"
+                        />
                     </div>
                 )}
-                {!ready && <p style={styles.hint}>Initializing camera & model…</p>}
-                {errMsg && <p style={styles.error}>⚠️ {errMsg}</p>}
+                {!ready && <p className="text-center text-gray-600 mt-2">Initializing camera & model…</p>}
+                {errMsg && <p className="text-center text-red-600 mt-2">⚠️ {errMsg}</p>}
             </div>
         </div>
     );
@@ -312,18 +329,4 @@ function slerpAngle(a: number, b: number, t: number) {
     return a + diff * t;
 }
 
-// ----- Styles --------------------------------------------------------------
-const styles: Record<string, React.CSSProperties> = {
-    root: { fontFamily: "Inter, sans-serif", background: "#f0f0f5", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" },
-    card: { background: "#fff", borderRadius: 20, boxShadow: "0 10px 30px rgba(0,0,0,0.1)", width: "92%", maxWidth: 460, padding: 20 },
-    title: { margin: "8px 0 16px", fontSize: "1.25rem", fontWeight: 700, color: "#4a4a4a", textAlign: "center" },
-    cameraWrap: { position: "relative", width: "100%", paddingTop: "100%", background: "#000", borderRadius: 16, overflow: "hidden" },
-    video: { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", width: "100%", height: "100%", objectFit: "cover" },
-    overlay: { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", pointerEvents: "none" },
-    controls: { display: "flex", justifyContent: "center", marginTop: 16 },
-    captureBtn: { backgroundColor: "#f7a040", border: "5px solid #fff", width: 72, height: 72, borderRadius: "50%", cursor: "pointer", boxShadow: "0 4px 15px rgba(247,160,64,0.4)" },
-    preview: { marginTop: 16, textAlign: "center" },
-    previewImg: { maxWidth: "100%", borderRadius: 12, boxShadow: "0 6px 20px rgba(0,0,0,0.12)" },
-    hint: { textAlign: "center", color: "#666", marginTop: 8 },
-    error: { textAlign: "center", color: "#b00020", marginTop: 8 },
-};
+

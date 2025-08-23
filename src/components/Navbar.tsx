@@ -87,15 +87,6 @@ const Navbar = () => {
                                 </Link>
                             </li>
                             <li>
-                                <Link
-                                    href="/ar"
-                                    onClick={() => setOpen(false)}
-                                    className="text-2xl hover:opacity-80 transition-opacity duration-200 block"
-                                >
-                                    AR Sunglasses
-                                </Link>
-                            </li>
-                            <li>
                                 <button
                                     onClick={handleSignOut}
                                     className="text-2xl hover:opacity-80 transition-opacity duration-200"

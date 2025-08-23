@@ -288,7 +288,7 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
             const link = document.createElement('a');
             link.href = imageData;
             link.download = fileName;
-            link.style.display = 'none';
+            link.classList.add('hidden');
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -313,7 +313,7 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                 const link = document.createElement('a');
                 link.href = url;
                 link.download = fileName;
-                link.style.display = 'none';
+                link.classList.add('hidden');
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -360,7 +360,7 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
             try {
                 // iframeを使用してアプリを開く
                 const iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
+                iframe.classList.add('hidden');
                 iframe.src = url;
                 document.body.appendChild(iframe);
 

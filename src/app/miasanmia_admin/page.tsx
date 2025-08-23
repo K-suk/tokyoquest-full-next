@@ -1660,7 +1660,7 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onOpenEdi
             {/* Quest一覧 */}
             <div className="bg-white rounded-lg shadow">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200 table-fixed" style={{ width: '1200px' }}>
+                    <table className="min-w-full divide-y divide-gray-200 table-fixed w-[1200px]">
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
