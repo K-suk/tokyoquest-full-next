@@ -361,120 +361,132 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
 
             {/* Complete Quest モーダル */}
             {showCompleteModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
                     <div
                         className={`absolute inset-0 bg-black bg-opacity-20 backdrop-blur-[1px] transition-opacity duration-300 ease-out ${modalAnimation ? 'opacity-100' : 'opacity-0'}`}
                         onClick={closeModal}
                     />
-                    <div className={`relative bg-white p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl transform transition-all duration-300 ease-out ${modalAnimation ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">Complete Quest</h2>
-                            <button
-                                onClick={closeModal}
-                                className="text-2xl hover:opacity-80 transition-opacity duration-200"
-                            >
-                                ✕
-                            </button>
+                    <div className={`relative bg-white rounded-t-2xl sm:rounded-2xl max-w-md w-full mx-4 shadow-2xl transform transition-all duration-300 ease-out max-h-[90vh] sm:max-h-[80vh] flex flex-col ${modalAnimation ? 'translate-y-0 opacity-100' : 'translate-y-full sm:translate-y-0 sm:scale-95 opacity-0'}`}>
+                        {/* 固定ヘッダー */}
+                        <div className="flex-shrink-0 p-6 pb-4">
+                            {/* ドラッグハンドル（モバイルのみ表示） */}
+                            <div className="sm:hidden flex justify-center mb-4">
+                                <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
+                            </div>
+
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-xl font-bold">Complete Quest</h2>
+                                <button
+                                    onClick={closeModal}
+                                    className="text-2xl hover:opacity-80 transition-opacity duration-200"
+                                >
+                                    ✕
+                                </button>
+                            </div>
                         </div>
-                        <div className="space-y-6">
-                            <div className="text-center">
-                                <p className="text-gray-600 mb-2">
-                                    Take a photo or upload an image to complete this quest!
-                                </p>
-                                <div className="w-16 h-1 bg-gray-300 mx-auto rounded-full"></div>
-                            </div>
 
-                            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                                {/* 撮影オプション */}
-                                <button
-                                    onClick={handleCaptureImage}
-                                    className="flex-1 max-w-xs mx-auto sm:mx-0 flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                                >
-                                    <div className="text-2xl">📷</div>
-                                    <div className="text-left">
-                                        <div className="font-semibold">Take Photo</div>
-                                        <div className="text-xs opacity-90">Use camera</div>
-                                    </div>
-                                </button>
-
-                                {/* アップロードオプション */}
-                                <button
-                                    onClick={() => {
-                                        const input = document.createElement('input');
-                                        input.type = 'file';
-                                        input.accept = 'image/*';
-                                        input.onchange = (e) => {
-                                            const file = (e.target as HTMLInputElement).files?.[0];
-                                            if (file) {
-                                                const reader = new FileReader();
-                                                reader.onload = (e) => {
-                                                    const result = e.target?.result as string;
-                                                    setSelectedImage(result);
-                                                };
-                                                reader.readAsDataURL(file);
-                                            }
-                                        };
-                                        input.click();
-                                    }}
-                                    className="flex-1 max-w-xs mx-auto sm:mx-0 flex items-center justify-center gap-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                                >
-                                    <div className="text-2xl">📤</div>
-                                    <div className="text-left">
-                                        <div className="font-semibold">Upload Image</div>
-                                        <div className="text-xs opacity-90">From gallery</div>
-                                    </div>
-                                </button>
-                            </div>
-
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                accept="image/*"
-                                capture="environment"
-                                onChange={handleImageUpload}
-                                className="hidden"
-                            />
-
-                            {selectedImage && (
-                                <div className="space-y-6">
-                                    <div className="text-center">
-                                        <div className="w-16 h-1 bg-green-300 mx-auto rounded-full mb-2"></div>
-                                        <p className="text-green-600 font-medium">Image Selected ✓</p>
-                                    </div>
-
-                                    <div className="relative w-full overflow-hidden rounded-xl border-2 border-green-200 bg-gray-50 shadow-lg">
-                                        <img
-                                            src={selectedImage}
-                                            alt="Quest completion proof"
-                                            className="w-full h-auto max-h-96 object-contain mx-auto"
-                                            style={{
-                                                aspectRatio: 'auto',
-                                                display: 'block'
-                                            }}
-                                        />
-                                    </div>
-
-                                    <div className="flex gap-4">
-                                        <button
-                                            onClick={() => setSelectedImage(null)}
-                                            className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-xl font-medium transition-colors duration-200"
-                                        >
-                                            ↺ Choose Different Image
-                                        </button>
-                                        <button
-                                            onClick={handleCompleteQuest}
-                                            disabled={!selectedImage || isUploading}
-                                            className={`flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105
-                                            ${(!selectedImage || isUploading)
-                                                    ? 'opacity-50 cursor-not-allowed transform-none'
-                                                    : ''
-                                                }`}
-                                        >
-                                            {isUploading ? '🔄 Completing...' : '🎉 Complete Quest'}
-                                        </button>
-                                    </div>
+                        {/* スクロール可能なコンテンツ */}
+                        <div className="flex-1 overflow-y-auto px-6 pb-6">
+                            <div className="space-y-6">
+                                <div className="text-center">
+                                    <p className="text-gray-600 mb-2">
+                                        Take a photo or upload an image to complete this quest!
+                                    </p>
+                                    <div className="w-16 h-1 bg-gray-300 mx-auto rounded-full"></div>
                                 </div>
-                            )}
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {/* 撮影オプション */}
+                                    <button
+                                        onClick={handleCaptureImage}
+                                        className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-6 py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                    >
+                                        <div className="text-2xl">📷</div>
+                                        <div className="text-left">
+                                            <div className="font-semibold">Take Photo</div>
+                                            <div className="text-xs opacity-90">Use camera</div>
+                                        </div>
+                                    </button>
+
+                                    {/* アップロードオプション */}
+                                    <button
+                                        onClick={() => {
+                                            const input = document.createElement('input');
+                                            input.type = 'file';
+                                            input.accept = 'image/*';
+                                            input.onchange = (e) => {
+                                                const file = (e.target as HTMLInputElement).files?.[0];
+                                                if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onload = (e) => {
+                                                        const result = e.target?.result as string;
+                                                        setSelectedImage(result);
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                }
+                                            };
+                                            input.click();
+                                        }}
+                                        className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                    >
+                                        <div className="text-2xl">📤</div>
+                                        <div className="text-left">
+                                            <div className="font-semibold">Upload Image</div>
+                                            <div className="text-xs opacity-90">From gallery</div>
+                                        </div>
+                                    </button>
+                                </div>
+
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    accept="image/*"
+                                    capture="environment"
+                                    onChange={handleImageUpload}
+                                    className="hidden"
+                                />
+
+                                {selectedImage && (
+                                    <div className="space-y-6">
+                                        <div className="text-center">
+                                            <div className="w-16 h-1 bg-green-300 mx-auto rounded-full mb-2"></div>
+                                            <p className="text-green-600 font-medium">Image Selected ✓</p>
+                                        </div>
+
+                                        <div className="relative w-full overflow-hidden rounded-xl border-2 border-green-200 bg-gray-50 shadow-lg">
+                                            <img
+                                                src={selectedImage}
+                                                alt="Quest completion proof"
+                                                className="w-full h-auto max-h-96 object-contain mx-auto"
+                                                style={{
+                                                    aspectRatio: 'auto',
+                                                    display: 'block'
+                                                }}
+                                            />
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <button
+                                                onClick={() => setSelectedImage(null)}
+                                                className="w-full bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-xl font-medium transition-colors duration-200"
+                                            >
+                                                ↺ Choose Different Image
+                                            </button>
+                                            <button
+                                                onClick={handleCompleteQuest}
+                                                disabled={!selectedImage || isUploading}
+                                                className={`w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105
+                                                ${(!selectedImage || isUploading)
+                                                        ? 'opacity-50 cursor-not-allowed transform-none'
+                                                        : ''
+                                                    }`}
+                                            >
+                                                {isUploading ? '🔄 Completing...' : '🎉 Complete Quest'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
