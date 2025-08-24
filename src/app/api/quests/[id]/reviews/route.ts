@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
 import { questRateLimiter, withRateLimit } from "@/lib/rate-limit";
+import { reviewSchema } from "@/lib/validation";
 
 // キャッシュを無効化
 export const dynamic = "force-dynamic";
@@ -57,43 +58,41 @@ export async function POST(
     // 3) リクエストボディからデータを取得
     const { rating, comment } = await request.json();
 
-    // 4) 入力値検証を強化
-    if (!rating || typeof rating !== "number" || rating < 1 || rating > 5) {
+    // 4) Zodスキーマによる厳格な入力検証
+    let validatedData;
+    let sanitizedComment;
+
+    try {
+      // 入力データの型チェック
+      if (typeof rating !== "number" || typeof comment !== "string") {
+        return NextResponse.json(
+          {
+            error:
+              "Invalid data types. Rating must be a number and comment must be a string.",
+          },
+          { status: 400 }
+        );
+      }
+
+      validatedData = reviewSchema.parse({ rating, comment });
+
+      // 5) XSS対策: HTMLタグをエスケープ
+      sanitizedComment = validatedData.comment
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#x27;")
+        .replace(/&/g, "&amp;");
+    } catch (error) {
+      if (error instanceof Error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+
       return NextResponse.json(
-        { error: "Rating must be between 1 and 5" },
+        { error: "Invalid input data" },
         { status: 400 }
       );
     }
-
-    if (!comment || typeof comment !== "string") {
-      return NextResponse.json(
-        { error: "Comment is required" },
-        { status: 400 }
-      );
-    }
-
-    // 5) コメントの長さと内容を検証
-    const trimmedComment = comment.trim();
-    if (trimmedComment.length === 0) {
-      return NextResponse.json(
-        { error: "Comment cannot be empty" },
-        { status: 400 }
-      );
-    }
-
-    if (trimmedComment.length > 1000) {
-      return NextResponse.json(
-        { error: "Comment must be less than 1000 characters" },
-        { status: 400 }
-      );
-    }
-
-    // 6) XSS対策: HTMLタグをエスケープ
-    const sanitizedComment = trimmedComment
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#x27;");
 
     // 7) questが存在するか確認
     const quest = await prisma.quest.findUnique({
@@ -136,7 +135,7 @@ export async function POST(
       data: {
         quest_id: questId,
         user_id: user.id,
-        rating,
+        rating: validatedData.rating,
         comment: sanitizedComment,
       },
       select: {
@@ -180,6 +179,7 @@ export async function GET(
   try {
     const { id } = await params;
     const questId = parseInt(id);
+
     if (isNaN(questId)) {
       return NextResponse.json({ error: "Invalid quest ID" }, { status: 400 });
     }

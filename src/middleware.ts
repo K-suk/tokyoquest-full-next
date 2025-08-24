@@ -3,6 +3,21 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+// インメモリレート制限ストア
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+// レート制限設定
+const RATE_LIMIT_CONFIG = {
+  // 一般APIエンドポイント
+  general: { limit: 100, windowMs: 15 * 60 * 1000 }, // 15分で100リクエスト
+  // 認証関連
+  auth: { limit: 5, windowMs: 15 * 60 * 1000 }, // 15分で5リクエスト
+  // ファイルアップロード
+  upload: { limit: 10, windowMs: 60 * 60 * 1000 }, // 1時間で10リクエスト
+  // 検索・クエスト取得
+  quest: { limit: 50, windowMs: 5 * 60 * 1000 }, // 5分で50リクエスト
+};
+
 // --- Nonce生成関数（Edge Runtime対応）---
 function generateNonce() {
   // Edge Runtimeでも動作するようにcrypto.randomUUID()を使用
@@ -42,19 +57,19 @@ function generateCSP(nonce: string, isProduction: boolean = false) {
     "upgrade-insecure-requests",
   ];
 
-  // 開発環境での追加緩和
+  // 開発環境での追加緩和（unsafe-evalは削除）
   if (!isProduction) {
     return baseCSP
       .map((directive) => {
         if (directive.startsWith("script-src")) {
           return (
-            "script-src 'self' 'unsafe-eval' 'nonce-" +
+            "script-src 'self' 'nonce-" +
             nonce +
             "' 'strict-dynamic' https: https://cdn.jsdelivr.net https://storage.googleapis.com"
           );
         }
         if (directive.startsWith("style-src")) {
-          return "style-src 'self' 'unsafe-inline' 'nonce-" + nonce + "'";
+          return "style-src 'self' 'nonce-" + nonce + "'";
         }
         if (directive.startsWith("img-src")) {
           return "img-src 'self' data: https: blob:";
@@ -71,6 +86,52 @@ function generateCSP(nonce: string, isProduction: boolean = false) {
   }
 
   return baseCSP.join("; ");
+}
+
+// --- レート制限チェック関数 ---
+function checkRateLimit(
+  identifier: string,
+  config: keyof typeof RATE_LIMIT_CONFIG
+): boolean {
+  const now = Date.now();
+  const { limit, windowMs } = RATE_LIMIT_CONFIG[config];
+  const key = `${identifier}:${config}`;
+
+  const current = rateLimitStore.get(key);
+
+  if (!current || now > current.resetTime) {
+    // 新しいウィンドウまたは初回アクセス
+    rateLimitStore.set(key, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+
+  if (current.count >= limit) {
+    return false; // レート制限超過
+  }
+
+  // カウントを増加
+  current.count++;
+  return true;
+}
+
+// --- レート制限ヘッダーを追加する関数 ---
+function addRateLimitHeaders(
+  response: NextResponse,
+  identifier: string,
+  config: keyof typeof RATE_LIMIT_CONFIG
+): void {
+  const { limit, windowMs } = RATE_LIMIT_CONFIG[config];
+  const key = `${identifier}:${config}`;
+  const current = rateLimitStore.get(key);
+
+  if (current) {
+    const remaining = Math.max(0, limit - current.count);
+    const resetTime = new Date(current.resetTime).toISOString();
+
+    response.headers.set("X-RateLimit-Limit", limit.toString());
+    response.headers.set("X-RateLimit-Remaining", remaining.toString());
+    response.headers.set("X-RateLimit-Reset", resetTime);
+  }
 }
 
 // --- ヘッダーを追加する関数 ---
@@ -142,6 +203,38 @@ export async function middleware(request: NextRequest) {
 
   // リクエストごとにnonceを生成
   const nonce = generateNonce();
+
+  // レート制限の識別子を生成
+  const ip =
+    request.headers.get("x-forwarded-for") ||
+    request.headers.get("x-real-ip") ||
+    "unknown";
+  const userAgent = request.headers.get("user-agent") || "unknown";
+  const identifier = `${ip}:${userAgent}`;
+
+  // APIエンドポイントのレート制限チェック
+  if (pathname.startsWith("/api/")) {
+    let rateLimitConfig: keyof typeof RATE_LIMIT_CONFIG = "general";
+
+    // エンドポイント別のレート制限設定
+    if (pathname.includes("/auth") || pathname.includes("/login")) {
+      rateLimitConfig = "auth";
+    } else if (pathname.includes("/upload") || pathname.includes("/complete")) {
+      rateLimitConfig = "upload";
+    } else if (pathname.includes("/quests")) {
+      rateLimitConfig = "quest";
+    }
+
+    if (!checkRateLimit(identifier, rateLimitConfig)) {
+      const response = NextResponse.json(
+        { error: "Rate limit exceeded. Please try again later." },
+        { status: 429 }
+      );
+      response.headers.set("x-nonce", nonce);
+      addRateLimitHeaders(response, identifier, rateLimitConfig);
+      return addSecurityHeaders(response, nonce, pathname);
+    }
+  }
 
   // ── 1) 静的アセット（画像やビルド成果物）は認証スキップ＆ヘッダー追加 ──
   if (

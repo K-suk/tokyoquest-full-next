@@ -357,7 +357,7 @@ export default function ARFilterCapture({ onCapture, onCancel }: ARFilterCapture
     );
 }
 
-// Loader that survives HMR - CSP compliant version
+// Loader that survives HMR - CSP compliant version with nonce support
 async function loadVisionBundle(): Promise<any> {
     const VISION_CDN_VERSION = "0.10.14";
     const VISION_BUNDLE_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VISION_CDN_VERSION}/vision_bundle.mjs`;
@@ -366,7 +366,7 @@ async function loadVisionBundle(): Promise<any> {
     if (w.__mp_vision) return w.__mp_vision;
     if (w.__mp_vision_promise) return w.__mp_vision_promise;
 
-    // CSP compliant loading using script tag instead of dynamic import
+    // CSP compliant loading using script tag with nonce
     const p = new Promise<any>((resolve, reject) => {
         // Check if already loaded
         if (window.FaceLandmarker) {
@@ -379,10 +379,16 @@ async function loadVisionBundle(): Promise<any> {
             return;
         }
 
-        // Load script dynamically
+        // Get nonce from meta tag or header
+        const nonce = document.querySelector('meta[name="csp-nonce"]')?.getAttribute('content') || '';
+
+        // Load script dynamically with nonce
         const script = document.createElement('script');
         script.src = VISION_BUNDLE_URL;
         script.type = 'module';
+        if (nonce) {
+            script.setAttribute('nonce', nonce);
+        }
 
         // Add timeout for script loading
         const timeout = setTimeout(() => {

@@ -18,6 +18,54 @@ export function validateEnv() {
     );
   }
 
+  // 環境変数の型と形式の厳格な検証
+  const envValidation = {
+    DATABASE_URL: {
+      value: process.env.DATABASE_URL!,
+      pattern: /^postgresql:\/\/[^:]+:[^@]+@[^:]+:\d+\/[^?]+(\?.*)?$/,
+      message: "DATABASE_URL must be a valid PostgreSQL connection string",
+    },
+    GOOGLE_CLIENT_ID: {
+      value: process.env.GOOGLE_CLIENT_ID!,
+      pattern: /^[0-9]+-[a-zA-Z0-9]+\.apps\.googleusercontent\.com$/,
+      message: "GOOGLE_CLIENT_ID must be a valid Google OAuth client ID",
+    },
+    GOOGLE_CLIENT_SECRET: {
+      value: process.env.GOOGLE_CLIENT_SECRET!,
+      minLength: 24,
+      message: "GOOGLE_CLIENT_SECRET must be at least 24 characters long",
+    },
+    NEXTAUTH_SECRET: {
+      value: process.env.NEXTAUTH_SECRET!,
+      minLength: 32,
+      pattern: /^[A-Za-z0-9+/=]{32,}$/,
+      message:
+        "NEXTAUTH_SECRET must be at least 32 characters and base64 encoded",
+    },
+    NEXTAUTH_URL: {
+      value: process.env.NEXTAUTH_URL!,
+      pattern: /^https?:\/\/[^\s/$.?#].[^\s]*$/,
+      message: "NEXTAUTH_URL must be a valid URL",
+    },
+  };
+
+  // 各環境変数の検証
+  for (const [key, validation] of Object.entries(envValidation)) {
+    const { value, message } = validation;
+
+    if (!value || value.trim() === "") {
+      throw new Error(`${key} is required and cannot be empty`);
+    }
+
+    if ("minLength" in validation && value.length < validation.minLength) {
+      throw new Error(`${key} ${message}`);
+    }
+
+    if ("pattern" in validation && !validation.pattern.test(value)) {
+      throw new Error(`${key} ${message}`);
+    }
+  }
+
   // NEXTAUTH_SECRETの強度チェック
   const secret = process.env.NEXTAUTH_SECRET!;
   if (secret.length < 32) {

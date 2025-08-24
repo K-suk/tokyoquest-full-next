@@ -2,6 +2,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import type { AuthOptions } from "next-auth";
+import { randomUUID } from "crypto";
 
 export const authOptions: AuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -37,6 +38,7 @@ export const authOptions: AuthOptions = {
         return false;
       }
 
+      // セッション固定化対策: 新しいセッションIDを生成
       return true;
     },
     async session({ session, token }) {
@@ -51,10 +53,21 @@ export const authOptions: AuthOptions = {
     },
     async jwt({ token, user, account }) {
       if (account && user) {
+        // セッション固定化対策: ログイン時に新しいトークンを生成
         token.email = user.email;
         token.name = user.name;
         token.picture = user.image;
+        token.iat = Math.floor(Date.now() / 1000); // 発行時刻を更新
+        token.jti = randomUUID(); // 一意のトークンIDを生成
+        token.exp = Math.floor(Date.now() / 1000) + 24 * 60 * 60; // 24時間有効期限
+        token.sessionId = randomUUID(); // セッション固有ID
       }
+
+      // 既存トークンの有効期限チェック
+      if (token.exp && token.exp < Math.floor(Date.now() / 1000)) {
+        throw new Error("Token expired");
+      }
+
       return token;
     },
   },
@@ -72,7 +85,7 @@ export const authOptions: AuthOptions = {
           : "next-auth.session-token",
       options: {
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+        sameSite: "strict",
         path: "/",
         secure: process.env.NODE_ENV === "production",
         maxAge: 24 * 60 * 60, // 24時間
@@ -85,7 +98,7 @@ export const authOptions: AuthOptions = {
           : "next-auth.callback-url",
       options: {
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
+        sameSite: "strict",
         path: "/",
         secure: process.env.NODE_ENV === "production",
         maxAge: 60 * 60, // 1時間

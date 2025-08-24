@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { UserDTO } from "@/lib/dto";
-import { updateProfileSchema, validateInput } from "@/lib/validation";
+import { updateProfileSchema, validateInputWithResult } from "@/lib/validation";
 
 interface ProfileHeaderProps {
     user: UserDTO;
@@ -49,7 +49,7 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
     // プロフィール更新
     const handleSubmit = async () => {
         // 入力値のバリデーション
-        const validationResult = validateInput(updateProfileSchema, {
+        const validationResult = validateInputWithResult(updateProfileSchema, {
             name: editName
         });
 
@@ -95,7 +95,7 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
 
         // リアルタイムでバリデーション
         if (value.trim()) {
-            const validationResult = validateInput(updateProfileSchema, {
+            const validationResult = validateInputWithResult(updateProfileSchema, {
                 name: value
             });
 

@@ -150,12 +150,43 @@ class SecurityLogger {
       "key",
       "credential",
       "input",
+      "email",
+      "phone",
+      "address",
+      "credit_card",
+      "ssn",
+      "api_key",
+      "private_key",
+      "session_id",
+      "auth_token",
+      "refresh_token",
+      "access_token",
+      "client_secret",
+      "database_url",
+      "connection_string",
+      "encryption_key",
+      "signing_key",
+      "jwt_secret",
+      "oauth_secret",
+      "webhook_secret",
+      "api_secret",
+      "master_key",
+      "admin_password",
+      "root_password",
+      "sudo_password",
     ];
     const result = { ...details };
 
     sensitiveKeys.forEach((key) => {
       if (key in result) {
         result[key] = "[REDACTED]";
+      }
+    });
+
+    // ネストされたオブジェクトも再帰的に処理
+    Object.keys(result).forEach((key) => {
+      if (typeof result[key] === "object" && result[key] !== null) {
+        result[key] = this.sanitizeSecurityDetails(result[key]);
       }
     });
 

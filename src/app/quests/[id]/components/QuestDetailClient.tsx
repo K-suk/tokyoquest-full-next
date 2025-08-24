@@ -410,23 +410,7 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
 
                                     {/* アップロードオプション */}
                                     <button
-                                        onClick={() => {
-                                            const input = document.createElement('input');
-                                            input.type = 'file';
-                                            input.accept = 'image/*';
-                                            input.onchange = (e) => {
-                                                const file = (e.target as HTMLInputElement).files?.[0];
-                                                if (file) {
-                                                    const reader = new FileReader();
-                                                    reader.onload = (e) => {
-                                                        const result = e.target?.result as string;
-                                                        setSelectedImage(result);
-                                                    };
-                                                    reader.readAsDataURL(file);
-                                                }
-                                            };
-                                            input.click();
-                                        }}
+                                        onClick={() => fileInputRef.current?.click()}
                                         className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                                     >
                                         <div className="text-2xl">📤</div>
