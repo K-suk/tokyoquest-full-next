@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* クリティカルCSS */
+.loading { 
+  opacity: 0.7; 
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

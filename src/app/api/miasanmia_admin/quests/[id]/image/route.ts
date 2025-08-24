@@ -6,7 +6,9 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import { fileTypeFromBuffer } from "file-type";
 
 // 擬似ウイルススキャン関数（実際の実装ではClamAV等に置き換え）
-async function performPseudoVirusScan(buffer: Buffer): Promise<{ safe: boolean; reason?: string }> {
+async function performPseudoVirusScan(
+  buffer: Buffer
+): Promise<{ safe: boolean; reason?: string }> {
   // 基本的なチェック
   const fileSize = buffer.length;
 
@@ -33,12 +35,16 @@ async function performPseudoVirusScan(buffer: Buffer): Promise<{ safe: boolean; 
   }
 
   // JPEG/PNG/GIF/WebPの基本構造チェック
-  const firstBytes = buffer.subarray(0, Math.min(64, buffer.length)).toString('hex');
+  const firstBytes = buffer
+    .subarray(0, Math.min(64, buffer.length))
+    .toString("hex");
 
   // 実際のウイルススキャンに置き換えるまでの一時的なチェック
   // 本番環境では必ず真のAVスキャナーを実装すること
   for (const pattern of suspiciousPatterns) {
-    if (pattern.test(buffer.toString('utf8', 0, Math.min(1024, buffer.length)))) {
+    if (
+      pattern.test(buffer.toString("utf8", 0, Math.min(1024, buffer.length)))
+    ) {
       return { safe: false, reason: "Suspicious content detected" };
     }
   }
@@ -93,10 +99,7 @@ export async function POST(
     const maxSize = 5 * 1024 * 1024; // 5MB
 
     if (contentLength && parseInt(contentLength) > maxSize) {
-      return NextResponse.json(
-        { error: "Request too large" },
-        { status: 413 }
-      );
+      return NextResponse.json({ error: "Request too large" }, { status: 413 });
     }
 
     // ファイルサイズチェック（実サイズ）
@@ -107,18 +110,26 @@ export async function POST(
       );
     }
 
-    // ファイルバッファ取得
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
     // MIMEタイプチェック（宣言されたタイプ）
-    const allowedMimeTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    const allowedMimeTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
     if (!allowedMimeTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed." },
+        {
+          error:
+            "Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.",
+        },
         { status: 400 }
       );
     }
+
+    // ファイルバッファ取得
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
 
     // ファイルシグネチャチェック（file-typeによるマジックバイト検証）
     const detectedType = await fileTypeFromBuffer(buffer);

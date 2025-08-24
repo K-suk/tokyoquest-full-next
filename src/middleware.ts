@@ -3,6 +3,18 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+// セッション管理用のインメモリストア
+const sessionStore = new Map<
+  string,
+  {
+    sessionId: string;
+    lastActivity: number;
+    ip: string;
+    userAgent: string;
+    loginTime: number;
+  }
+>();
+
 // インメモリレート制限ストア
 const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
 
@@ -21,64 +33,120 @@ const RATE_LIMIT_CONFIG = {
 // --- Nonce生成関数（Edge Runtime対応）---
 function generateNonce() {
   // Edge Runtimeでも動作するようにcrypto.randomUUID()を使用
-  // またはMath.random()を使った代替実装
   try {
     // crypto.randomUUID()が利用可能なら使用
     if (typeof crypto !== "undefined" && crypto.randomUUID) {
       return btoa(crypto.randomUUID()).replace(/[+/=]/g, "").substring(0, 16);
     }
+
+    // crypto.getRandomValues()が利用可能なら使用
+    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+      const array = new Uint8Array(16);
+      crypto.getRandomValues(array);
+      return btoa(String.fromCharCode(...Array.from(array)))
+        .replace(/[+/=]/g, "")
+        .substring(0, 16);
+    }
   } catch (error) {
-    // cryptoが利用できない場合はMath.random()を使用
-    console.warn("Crypto API not available, using Math.random() fallback");
+    // cryptoが利用できない場合はエラーを投げる
+    console.error("Crypto API not available for nonce generation");
+    throw new Error("Secure nonce generation not available");
   }
 
-  // Fallback: Math.random()ベースのnonce生成
-  const array = new Uint8Array(16);
-  for (let i = 0; i < 16; i++) {
-    array[i] = Math.floor(Math.random() * 256);
-  }
-  return btoa(String.fromCharCode(...Array.from(array)))
-    .replace(/[+/=]/g, "")
-    .substring(0, 16);
+  // フォールバックは削除（セキュリティ上の理由）
+  throw new Error("Secure nonce generation not available");
 }
 
 // --- CSP生成関数 ---
-function generateCSP(nonce: string, isProduction: boolean = false) {
+function generateCSP(
+  nonce: string,
+  pathname: string = "",
+  isProduction: boolean = false
+) {
+  // パス別のCSP設定
+  if (
+    pathname.startsWith("/api/miasanmia_admin/quests/") &&
+    pathname.includes("/image")
+  ) {
+    // 画像アップロードエンドポイント用CSP
+    return [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https:",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join("; ");
+  }
+
+  if (pathname.startsWith("/uploads/")) {
+    // アップロードファイル用CSP
+    return [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self'",
+      "img-src 'self' data:",
+      "font-src 'self' data:",
+      "connect-src 'self'",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join("; ");
+  }
+
+  if (pathname === "/ar") {
+    // ARページ用CSP（MediaPipe対応）
+    return [
+      "default-src 'self'",
+      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://cdn.jsdelivr.net https://storage.googleapis.com`,
+      `style-src 'self' 'nonce-${nonce}'`,
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https:",
+      "worker-src 'self' blob:",
+      "wasm-unsafe-eval",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join("; ");
+  }
+
+  // 一般的なページ用CSP
   const baseCSP = [
     "default-src 'self'",
     "base-uri 'self'",
     "frame-ancestors 'none'",
     "object-src 'none'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https:`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://cdn.jsdelivr.net`,
     `style-src 'self' 'nonce-${nonce}'`,
-    "img-src 'self' data: https:",
+    // 外部画像ドメインを適切に制限
+    "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com https://photos.app.goo.gl https://photos.fife.usercontent.google.com https://*.supabase.co",
     "font-src 'self' https: data:",
     "connect-src 'self' https: wss:",
-    "upgrade-insecure-requests",
+    "form-action 'self' /api/miasanmia_admin/quests/*/image",
   ];
 
-  // 開発環境での追加緩和（unsafe-evalは削除）
+  // 本番環境では upgrade-insecure-requests を追加
+  if (isProduction) {
+    baseCSP.push("upgrade-insecure-requests");
+  }
+
+  // 開発環境では追加の許可ドメインを含める
   if (!isProduction) {
     return baseCSP
       .map((directive) => {
         if (directive.startsWith("script-src")) {
-          return (
-            "script-src 'self' 'nonce-" +
-            nonce +
-            "' 'strict-dynamic' https: https://cdn.jsdelivr.net https://storage.googleapis.com"
-          );
-        }
-        if (directive.startsWith("style-src")) {
-          return "style-src 'self' 'nonce-" + nonce + "'";
+          return `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://cdn.jsdelivr.net https://storage.googleapis.com`;
         }
         if (directive.startsWith("img-src")) {
           return "img-src 'self' data: https: blob:";
         }
         if (directive.startsWith("connect-src")) {
           return "connect-src 'self' https: wss:";
-        }
-        if (directive.startsWith("font-src")) {
-          return "font-src 'self' https: data:";
         }
         return directive;
       })
@@ -166,7 +234,7 @@ function addSecurityHeaders(
   );
 
   // CSP設定
-  const csp = generateCSP(nonce, isProduction);
+  const csp = generateCSP(nonce, pathname, isProduction);
   response.headers.set("Content-Security-Policy", csp);
 
   return response;
@@ -254,6 +322,68 @@ export async function middleware(request: NextRequest) {
     req: request,
     secret: process.env.NEXTAUTH_SECRET,
   });
+
+  // セッション管理のセキュリティチェック
+  if (token) {
+    const sessionId = (token as any).sessionId;
+    const lastActivity = (token as any).lastActivity;
+    const loginTime = (token as any).loginTime;
+
+    if (sessionId && lastActivity) {
+      const now = Math.floor(Date.now() / 1000);
+
+      // セッションの有効性チェック
+      const sessionData = sessionStore.get(sessionId);
+
+      if (sessionData) {
+        // 既存セッションの更新
+        sessionData.lastActivity = now;
+        sessionData.ip = ip;
+        sessionData.userAgent = userAgent;
+      } else {
+        // 新しいセッションの登録
+        sessionStore.set(sessionId, {
+          sessionId,
+          lastActivity: now,
+          ip,
+          userAgent,
+          loginTime: loginTime || now,
+        });
+      }
+
+      // セッションの有効期限チェック（開発環境では緩和）
+      const inactivityLimit =
+        process.env.NODE_ENV === "production" ? 30 * 60 : 2 * 60 * 60; // 本番30分、開発2時間
+      const timeSinceLastActivity = now - lastActivity;
+      if (timeSinceLastActivity > inactivityLimit) {
+        // セッションが期限切れの場合、ログアウト処理
+        sessionStore.delete(sessionId);
+        const loginUrl = new URL("/login", request.url);
+        loginUrl.searchParams.set("error", "Session expired due to inactivity");
+        const response = NextResponse.redirect(loginUrl);
+        response.headers.set("x-nonce", nonce);
+        return addSecurityHeaders(response, nonce, pathname);
+      }
+
+      // セッション固定化攻撃の検出（開発環境では無効化）
+      if (
+        process.env.NODE_ENV === "production" &&
+        sessionData &&
+        sessionData.ip !== ip
+      ) {
+        // IPアドレスが変更された場合、セッションを無効化
+        sessionStore.delete(sessionId);
+        const loginUrl = new URL("/login", request.url);
+        loginUrl.searchParams.set(
+          "error",
+          "Session invalidated due to IP change"
+        );
+        const response = NextResponse.redirect(loginUrl);
+        response.headers.set("x-nonce", nonce);
+        return addSecurityHeaders(response, nonce, pathname);
+      }
+    }
+  }
 
   // ── 3) ログイン済みユーザーが /login または / にアクセスした場合、/home にリダイレクト ──
   if (token && (pathname === "/login" || pathname === "/")) {

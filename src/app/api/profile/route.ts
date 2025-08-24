@@ -4,8 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
-import { authRateLimiter, withRateLimit } from "@/lib/rate-limit";
-import { updateProfileSchema, validateInput } from "@/lib/validation";
+import { authRateLimiter } from "@/lib/rate-limit";
+import { updateProfileSchema, validateInputWithResult } from "@/lib/validation";
 
 // キャッシュを無効化
 export const dynamic = "force-dynamic";
@@ -25,15 +25,8 @@ const securityHeaders = {
 export async function GET(request: NextRequest) {
   try {
     // 1) レート制限チェック
-    const ip =
-      request.headers.get("x-forwarded-for") ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
-    const userAgent = request.headers.get("user-agent") || "unknown";
-    const rateLimitId = `${ip}:${userAgent}`;
-
-    const { allowed } = withRateLimit(authRateLimiter, rateLimitId);
-    if (!allowed) {
+    const rateLimitResult = authRateLimiter.checkRateLimit(request);
+    if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { error: "レート制限に達しました" },
         { status: 429, headers: securityHeaders }
@@ -85,15 +78,8 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     // 1) レート制限チェック
-    const ip =
-      request.headers.get("x-forwarded-for") ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
-    const userAgent = request.headers.get("user-agent") || "unknown";
-    const rateLimitId = `${ip}:${userAgent}`;
-
-    const { allowed } = withRateLimit(authRateLimiter, rateLimitId);
-    if (!allowed) {
+    const rateLimitResult = authRateLimiter.checkRateLimit(request);
+    if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { error: "レート制限に達しました" },
         { status: 429, headers: securityHeaders }
@@ -113,7 +99,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
 
     // 4) Zodバリデーション（SQLインジェクション対策）
-    const validationResult = validateInput(updateProfileSchema, body);
+    const validationResult = validateInputWithResult(updateProfileSchema, body);
     if (!validationResult.success) {
       return NextResponse.json(
         { error: validationResult.error },

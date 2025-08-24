@@ -4,8 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
-import { questRateLimiter, withRateLimit } from "@/lib/rate-limit";
+import { apiRateLimiter } from "@/lib/rate-limit";
 import { reviewSchema } from "@/lib/validation";
+import { securityLogger } from "@/lib/logger";
+import { SecurityTests } from "@/lib/security-tests";
 
 // キャッシュを無効化
 export const dynamic = "force-dynamic";
@@ -28,15 +30,8 @@ export async function POST(
 ) {
   try {
     // 1) レート制限チェック
-    const ip =
-      request.headers.get("x-forwarded-for") ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
-    const userAgent = request.headers.get("user-agent") || "unknown";
-    const rateLimitId = `${ip}:${userAgent}`;
-
-    const { allowed } = withRateLimit(questRateLimiter, rateLimitId);
-    if (!allowed) {
+    const rateLimitResult = apiRateLimiter.checkRateLimit(request);
+    if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { error: "Too many review submissions" },
         { status: 429 }
@@ -58,7 +53,42 @@ export async function POST(
     // 3) リクエストボディからデータを取得
     const { rating, comment } = await request.json();
 
-    // 4) Zodスキーマによる厳格な入力検証
+    // 4) セキュリティチェック（攻撃パターンの検出）
+    const clientIP =
+      request.headers.get("x-forwarded-for") ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
+
+    // XSS攻撃の検出
+    if (SecurityTests.detectXSS(comment)) {
+      securityLogger.logXssAttempt(
+        clientIP,
+        userAgent,
+        comment,
+        "review-submission"
+      );
+      return NextResponse.json(
+        { error: "Comment contains potentially dangerous content" },
+        { status: 400 }
+      );
+    }
+
+    // SQLインジェクション攻撃の検出
+    if (SecurityTests.detectSQLInjection(comment)) {
+      securityLogger.logSqlInjectionAttempt(
+        clientIP,
+        userAgent,
+        comment,
+        "review-submission"
+      );
+      return NextResponse.json(
+        { error: "Comment contains potentially dangerous SQL patterns" },
+        { status: 400 }
+      );
+    }
+
+    // 5) Zodスキーマによる厳格な入力検証
     let validatedData;
     let sanitizedComment;
 
@@ -76,7 +106,7 @@ export async function POST(
 
       validatedData = reviewSchema.parse({ rating, comment });
 
-      // 5) XSS対策: HTMLタグをエスケープ
+      // 6) XSS対策: HTMLタグをエスケープ
       sanitizedComment = validatedData.comment
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
@@ -85,6 +115,14 @@ export async function POST(
         .replace(/&/g, "&amp;");
     } catch (error) {
       if (error instanceof Error) {
+        // セキュリティログに記録
+        securityLogger.logAnomalousRequest(
+          clientIP,
+          userAgent,
+          "review-submission",
+          "validation_failed",
+          { error: error.message, rating, comment: comment.substring(0, 100) }
+        );
         return NextResponse.json({ error: error.message }, { status: 400 });
       }
 
@@ -151,6 +189,21 @@ export async function POST(
       },
     });
 
+    // 11) セキュリティログに記録（正常な投稿）
+    securityLogger.log({
+      event: "REVIEW_CREATED",
+      severity: "low",
+      details: {
+        questId,
+        userId: user.id,
+        rating: validatedData.rating,
+        commentLength: sanitizedComment.length,
+      },
+      ip: clientIP,
+      userAgent,
+      userId: user.id,
+    });
+
     return NextResponse.json({
       success: true,
       review: {
@@ -177,6 +230,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // 1) レート制限チェック
+    const rateLimitResult = apiRateLimiter.checkRateLimit(request);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { error: "Too many review requests" },
+        { status: 429 }
+      );
+    }
+
     const { id } = await params;
     const questId = parseInt(id);
 
@@ -184,7 +246,7 @@ export async function GET(
       return NextResponse.json({ error: "Invalid quest ID" }, { status: 400 });
     }
 
-    // 1) questが存在するか確認
+    // 2) questが存在するか確認
     const quest = await prisma.quest.findUnique({
       where: { id: questId },
       select: { id: true },
@@ -194,7 +256,16 @@ export async function GET(
       return NextResponse.json({ error: "Quest not found" }, { status: 404 });
     }
 
-    // 2) レビュー一覧を取得（セキュリティ強化）
+    // 3) ページネーションとセキュリティ制限
+    const url = new URL(request.url);
+    const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(url.searchParams.get("limit") || "20"))
+    );
+    const offset = (page - 1) * limit;
+
+    // 4) レビュー一覧を取得（セキュリティ強化）
     const reviews = await prisma.review.findMany({
       where: {
         quest_id: questId,
@@ -213,6 +284,15 @@ export async function GET(
       orderBy: {
         created_at: "desc",
       },
+      take: limit,
+      skip: offset,
+    });
+
+    // 5) 総レビュー数を取得
+    const totalReviews = await prisma.review.count({
+      where: {
+        quest_id: questId,
+      },
     });
 
     return NextResponse.json({
@@ -225,6 +305,12 @@ export async function GET(
           name: review.user.name || "Anonymous",
         },
       })),
+      pagination: {
+        page,
+        limit,
+        total: totalReviews,
+        totalPages: Math.ceil(totalReviews / limit),
+      },
     });
   } catch (error) {
     console.error("Error fetching reviews:", error);

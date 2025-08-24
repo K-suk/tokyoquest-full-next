@@ -35,13 +35,16 @@ export const updateProfileSchema = z.object({
     .transform((name) => name.trim()),
 });
 
+// クエストID検証スキーマ
+export const questIdSchema = z.number().positive("Invalid quest ID");
+
 // クエスト完了検証スキーマ
 export const questCompletionSchema = z.object({
   imageData: z.string().min(1, "Image data is required"),
-  questId: z.number().positive("Invalid quest ID"),
+  questId: questIdSchema,
 });
 
-// レビュー投稿検証スキーマ
+// レビュー投稿検証スキーマ（セキュリティ強化版）
 export const reviewSchema = z.object({
   rating: z
     .number({ required_error: "Rating is required" })
@@ -52,21 +55,131 @@ export const reviewSchema = z.object({
     .string({ required_error: "Comment is required" })
     .min(1, "Comment cannot be empty")
     .max(1000, "Comment must be less than 1000 characters")
-    .trim(),
+    .trim()
+    // XSS攻撃対策: 危険なHTMLタグやスクリプトを検出
+    .refine(
+      (comment) => {
+        const dangerousPatterns = [
+          /<script[^>]*>/i,
+          /javascript:/i,
+          /on\w+\s*=/i,
+          /<iframe[^>]*>/i,
+          /<object[^>]*>/i,
+          /<embed[^>]*>/i,
+          /<link[^>]*>/i,
+          /<meta[^>]*>/i,
+          /<form[^>]*>/i,
+          /<input[^>]*>/i,
+          /<textarea[^>]*>/i,
+          /<select[^>]*>/i,
+          /<button[^>]*>/i,
+          /<a[^>]*href\s*=\s*["']?javascript:/i,
+          /<img[^>]*on\w+\s*=/i,
+          /<svg[^>]*on\w+\s*=/i,
+          /<div[^>]*on\w+\s*=/i,
+          /<span[^>]*on\w+\s*=/i,
+          /<p[^>]*on\w+\s*=/i,
+          /<h[1-6][^>]*on\w+\s*=/i,
+        ];
+        return !dangerousPatterns.some((pattern) => pattern.test(comment));
+      },
+      {
+        message: "Comment contains potentially dangerous content",
+      }
+    )
+    // SQLインジェクション攻撃対策: 危険なSQLパターンを検出
+    .refine(
+      (comment) => {
+        const sqlPatterns = [
+          /(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b)/i,
+          /(\b(or|and)\s+\d+\s*=\s*\d+)/i,
+          /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(union|select|insert|update|delete|drop|create|alter)\b)/i,
+          /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(from|into|where|set|values)\b)/i,
+          /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(table|column|database|schema)\b)/i,
+          /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(user|password|admin|root)\b)/i,
+          /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(sys|information_schema|mysql|postgresql)\b)/i,
+          /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(version|user|database|schema)\b)/i,
+          /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(concat|substring|length|count|sum|avg|max|min)\b)/i,
+          /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(if|case|when|then|else|end)\b)/i,
+        ];
+        return !sqlPatterns.some((pattern) => pattern.test(comment));
+      },
+      {
+        message: "Comment contains potentially dangerous SQL patterns",
+      }
+    )
+    // パストラバーサル攻撃対策
+    .refine(
+      (comment) => {
+        const pathTraversalPatterns = [
+          /\.\.\//g,
+          /\.\.\\/g,
+          /\.\.%2f/gi,
+          /\.\.%5c/gi,
+          /\.\.%2F/gi,
+          /\.\.%5C/gi,
+          /\.\.%252f/gi,
+          /\.\.%255c/gi,
+          /\.\.%252F/gi,
+          /\.\.%255C/gi,
+          /\.\.%c0%af/gi,
+          /\.\.%c1%9c/gi,
+          /\.\.%c0%AF/gi,
+          /\.\.%c1%9C/gi,
+          /\.\.%e0%80%af/gi,
+          /\.\.%e0%80%9c/gi,
+          /\.\.%e0%80%AF/gi,
+          /\.\.%e0%80%9C/gi,
+          /\.\.%f0%80%80%af/gi,
+          /\.\.%f0%80%80%9c/gi,
+          /\.\.%f0%80%80%AF/gi,
+          /\.\.%f0%80%80%9C/gi,
+        ];
+        return !pathTraversalPatterns.some((pattern) => pattern.test(comment));
+      },
+      {
+        message:
+          "Comment contains potentially dangerous path traversal patterns",
+      }
+    )
+    // 特殊文字の過度な使用を制限
+    .refine(
+      (comment) => {
+        // 連続する特殊文字を制限
+        const excessiveSpecialChars = /[!@#$%^&*(),.?":{}|<>]{3,}/;
+        return !excessiveSpecialChars.test(comment);
+      },
+      {
+        message: "Comment contains excessive special characters",
+      }
+    )
+    // 改行文字の過度な使用を制限
+    .refine(
+      (comment) => {
+        const newlineCount = (comment.match(/\n/g) || []).length;
+        return newlineCount <= 10; // 最大10行まで
+      },
+      {
+        message: "Comment contains too many line breaks",
+      }
+    ),
 });
 
 // ファイルアップロード検証スキーマ（サーバーサイド対応）
 export const fileUploadSchema = z.object({
-  file: z.any().refine((val) => {
-    // サーバーサイドではFileクラスが存在しないため、オブジェクトチェック
-    if (typeof window === 'undefined') {
-      return typeof val === 'object' && val !== null;
+  file: z.any().refine(
+    (val) => {
+      // サーバーサイドではFileクラスが存在しないため、オブジェクトチェック
+      if (typeof window === "undefined") {
+        return typeof val === "object" && val !== null;
+      }
+      // クライアントサイドではFileインスタンスチェック
+      return val instanceof File;
+    },
+    {
+      message: "File must be a valid file object",
     }
-    // クライアントサイドではFileインスタンスチェック
-    return val instanceof File;
-  }, {
-    message: "File must be a valid file object"
-  }),
+  ),
   maxSize: z.number().default(5 * 1024 * 1024), // 5MB
   allowedTypes: z
     .array(z.string())

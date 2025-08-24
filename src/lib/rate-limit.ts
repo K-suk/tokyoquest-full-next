@@ -167,3 +167,37 @@ export const uploadRateLimiter = new AdvancedRateLimiter(
   60 * 60 * 1000,
   2 * 60 * 60 * 1000
 );
+
+// 後方互換性のための古い関数（段階的移行用）
+export const questRateLimiter = apiRateLimiter;
+export const adminRateLimiter = new AdvancedRateLimiter(
+  20,
+  5 * 60 * 1000,
+  30 * 60 * 1000
+);
+
+// 古いwithRateLimit関数（後方互換性）
+export function withRateLimit(
+  rateLimiter: AdvancedRateLimiter,
+  identifier: string
+): { allowed: boolean; remaining: number; resetTime: number } {
+  // 古いAPIとの互換性のため、ダミーのNextRequestを作成
+  const dummyRequest = {
+    headers: {
+      get: (name: string) => {
+        if (name === "x-forwarded-for") return identifier.split(":")[0];
+        if (name === "user-agent") return identifier.split(":")[1] || "unknown";
+        if (name === "x-user-id")
+          return identifier.split(":")[2] || "anonymous";
+        return null;
+      },
+    },
+  } as any;
+
+  const result = rateLimiter.checkRateLimit(dummyRequest);
+  return {
+    allowed: result.allowed,
+    remaining: result.remaining,
+    resetTime: result.resetTime,
+  };
+}

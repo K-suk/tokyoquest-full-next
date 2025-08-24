@@ -215,6 +215,71 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
             return;
         }
 
+        // クライアントサイドでのセキュリティ検証
+        const comment = newComment.trim();
+
+        // XSS攻撃の検出
+        const xssPatterns = [
+            /<script[^>]*>/i,
+            /javascript:/i,
+            /on\w+\s*=/i,
+            /<iframe[^>]*>/i,
+            /<object[^>]*>/i,
+            /<embed[^>]*>/i,
+            /<link[^>]*>/i,
+            /<meta[^>]*>/i,
+            /<form[^>]*>/i,
+            /<input[^>]*>/i,
+            /<textarea[^>]*>/i,
+            /<select[^>]*>/i,
+            /<button[^>]*>/i,
+            /<a[^>]*href\s*=\s*["']?javascript:/i,
+            /<img[^>]*on\w+\s*=/i,
+            /<svg[^>]*on\w+\s*=/i,
+            /<div[^>]*on\w+\s*=/i,
+            /<span[^>]*on\w+\s*=/i,
+            /<p[^>]*on\w+\s*=/i,
+            /<h[1-6][^>]*on\w+\s*=/i,
+        ];
+
+        if (xssPatterns.some(pattern => pattern.test(comment))) {
+            alert('Comment contains potentially dangerous content. Please remove any HTML tags or scripts.');
+            return;
+        }
+
+        // SQLインジェクション攻撃の検出
+        const sqlPatterns = [
+            /(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b)/i,
+            /(\b(or|and)\s+\d+\s*=\s*\d+)/i,
+            /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(union|select|insert|update|delete|drop|create|alter)\b)/i,
+            /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(from|into|where|set|values)\b)/i,
+            /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(table|column|database|schema)\b)/i,
+            /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(user|password|admin|root)\b)/i,
+            /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(sys|information_schema|mysql|postgresql)\b)/i,
+            /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(version|user|database|schema)\b)/i,
+            /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(concat|substring|length|count|sum|avg|max|min)\b)/i,
+            /(\b(union|select|insert|update|delete|drop|create|alter)\s+.*\b(if|case|when|then|else|end)\b)/i,
+        ];
+
+        if (sqlPatterns.some(pattern => pattern.test(comment))) {
+            alert('Comment contains potentially dangerous SQL patterns. Please use appropriate language.');
+            return;
+        }
+
+        // 特殊文字の過度な使用を制限
+        const excessiveSpecialChars = /[!@#$%^&*(),.?":{}|<>]{3,}/;
+        if (excessiveSpecialChars.test(comment)) {
+            alert('Comment contains excessive special characters. Please use normal text.');
+            return;
+        }
+
+        // 改行文字の過度な使用を制限
+        const newlineCount = (comment.match(/\n/g) || []).length;
+        if (newlineCount > 10) {
+            alert('Comment contains too many line breaks. Please limit to 10 lines or less.');
+            return;
+        }
+
         setSubmittingReview(true);
         try {
             const response = await fetch(`/api/quests/${questId}/reviews`, {
@@ -224,7 +289,7 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                 },
                 body: JSON.stringify({
                     rating: newRating,
-                    comment: newComment.trim(),
+                    comment: comment,
                 }),
             });
 
@@ -545,7 +610,9 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                                 </span>
                             </div>
                             <h4 className="font-bold mb-1">{r.user.name}</h4>
-                            <p className="text-sm text-gray-700">{r.comment}</p>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                                {r.comment}
+                            </p>
                         </div>
                     ))
                 ) : (
@@ -558,11 +625,34 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
             <section className="px-4 md:px-8 lg:px-12 pb-8">
                 <h2 className="text-lg font-bold mb-4">Leave Review</h2>
                 <textarea
-                    placeholder="Tell us about your experience!"
+                    placeholder="Tell us about your experience! (No HTML tags or scripts allowed)"
                     className="mb-4 min-h-[120px] w-full p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-red-400"
                     value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
+                    onChange={(e) => {
+                        const value = e.target.value;
+                        // リアルタイムで危険な文字を除去
+                        const sanitizedValue = value
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/javascript:/gi, '')
+                            .replace(/on\w+\s*=/gi, '');
+                        setNewComment(sanitizedValue);
+                    }}
                     maxLength={1000}
+                    onPaste={(e) => {
+                        // ペースト時のセキュリティチェック
+                        const pastedText = e.clipboardData.getData('text');
+                        const dangerousPatterns = [
+                            /<script[^>]*>/i,
+                            /javascript:/i,
+                            /on\w+\s*=/i,
+                        ];
+
+                        if (dangerousPatterns.some(pattern => pattern.test(pastedText))) {
+                            e.preventDefault();
+                            alert('Pasting potentially dangerous content is not allowed.');
+                        }
+                    }}
                 ></textarea>
 
                 {/* Star Rating */}

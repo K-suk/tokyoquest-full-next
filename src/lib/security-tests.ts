@@ -1,5 +1,5 @@
 import { validateInput, validateFile, validateBase64 } from "./validation";
-import { securityMonitor } from "./security-monitor";
+import { securityLogger } from "./logger";
 
 // セキュリティテストクラス
 export class SecurityTests {
@@ -212,18 +212,17 @@ export const runSecurityTests = {
   // 入力値のセキュリティテスト
   input: (input: string, ip: string, userAgent: string): boolean => {
     if (SecurityTests.detectXSS(input)) {
-      securityMonitor.logXSSAttempt(ip, userAgent, input);
+      securityLogger.logXssAttempt(ip, userAgent, input, "input-validation");
       return false;
     }
 
     if (SecurityTests.detectSQLInjection(input)) {
-      securityMonitor.logEvent({
-        type: SecurityEventType.SQL_INJECTION_ATTEMPT,
+      securityLogger.logSqlInjectionAttempt(
         ip,
         userAgent,
-        details: { payload: input.substring(0, 100) },
-        severity: "critical",
-      });
+        input,
+        "input-validation"
+      );
       return false;
     }
 
@@ -242,7 +241,13 @@ export const runSecurityTests = {
   // パスのセキュリティテスト
   path: (path: string, ip: string, userAgent: string): boolean => {
     if (SecurityTests.detectPathTraversal(path)) {
-      securityMonitor.logPathTraversalAttempt(ip, userAgent, path);
+      securityLogger.logAnomalousRequest(
+        ip,
+        userAgent,
+        "path-validation",
+        "path_traversal",
+        { path }
+      );
       return false;
     }
 
