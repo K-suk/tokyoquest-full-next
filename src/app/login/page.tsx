@@ -80,12 +80,6 @@ function LoginPageContent() {
     return (
         <div className="fixed inset-0 w-full h-full overflow-hidden h-screen">
 
-            {/* 画像のプリロード - パフォーマンス最適化 */}
-            <link rel="preload" as="image" href="/images/login-bg.png" fetchPriority="high" />
-            <link rel="preload" as="image" href="/images/tokyoquest_logo.png" fetchPriority="high" />
-
-
-
             {/* 背景イメージ */}
             <div className="absolute inset-0 z-0">
                 {!imageError.background && (
@@ -205,8 +199,7 @@ function LoginPageContent() {
                     <p>Siging up or in this account automatically agree to our <Link href="/term" className="font-bold">Terms of Service</Link> and <Link href="/privacy" className="font-bold">Privacy Policy</Link></p>
                 </div>
             </div>
-            </div>
-        </>
+        </div>
     );
 }
 
