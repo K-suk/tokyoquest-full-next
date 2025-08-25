@@ -343,14 +343,17 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── 3) ログイン済みユーザーが /login または / にアクセスした場合、/home にリダイレクト ──
+  // 検索エンジンのクローラーにはリダイレクトしない
+  const isSearchEngineBot = /bot|spider|crawler|googlebot|bingbot|slurp|duckduckbot|baiduspider|yandexbot/i.test(userAgent);
+  
   if (token && (pathname === "/login" || pathname === "/")) {
-    const response = NextResponse.redirect(new URL("/home", request.url));
-    response.headers.set("x-nonce", cspConfig.nonce);
-    return addSecurityHeaders(response, cspConfig, pathname);
-  }
-
-  // ── 3.5) 未ログインユーザーが / にアクセスした場合、/home にリダイレクト ──
-  if (!token && pathname === "/") {
+    // 検索エンジンのクローラーの場合はリダイレクトしない
+    if (isSearchEngineBot && pathname === "/") {
+      const response = NextResponse.next();
+      response.headers.set("x-nonce", cspConfig.nonce);
+      return addSecurityHeaders(response, cspConfig, pathname);
+    }
+    
     const response = NextResponse.redirect(new URL("/home", request.url));
     response.headers.set("x-nonce", cspConfig.nonce);
     return addSecurityHeaders(response, cspConfig, pathname);
