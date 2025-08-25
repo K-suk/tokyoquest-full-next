@@ -118,10 +118,11 @@ function generateCSP(
 
   if (pathname === "/login") {
     // ログインページ用CSP（Google認証対応）
+    // Next.jsのインラインスクリプト/スタイルとGoogle認証のため、unsafe-inlineを許可
     return [
       "default-src 'self'",
-      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://accounts.google.com https://www.gstatic.com https://www.google.com`,
-      `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
+      `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'strict-dynamic' https://accounts.google.com https://www.gstatic.com https://www.google.com`,
+      `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
       "img-src 'self' data: https: https://lh3.googleusercontent.com https://www.google.com",
       "font-src 'self' https: data: https://fonts.gstatic.com",
       "connect-src 'self' https: https://accounts.google.com https://www.googleapis.com",
@@ -138,8 +139,8 @@ function generateCSP(
     "base-uri 'self'",
     "frame-ancestors 'none'",
     "object-src 'none'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://cdn.jsdelivr.net https://accounts.google.com https://www.gstatic.com`,
-    `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
+    `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'strict-dynamic' https://cdn.jsdelivr.net https://accounts.google.com https://www.gstatic.com`,
+    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
     // 外部画像ドメインを適切に制限
     "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com https://photos.app.goo.gl https://photos.fife.usercontent.google.com https://*.supabase.co https://www.google.com",
     "font-src 'self' https: data: https://fonts.gstatic.com",
@@ -158,7 +159,10 @@ function generateCSP(
     return baseCSP
       .map((directive) => {
         if (directive.startsWith("script-src")) {
-          return `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://cdn.jsdelivr.net https://storage.googleapis.com https://accounts.google.com https://www.gstatic.com`;
+          return `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'strict-dynamic' https://cdn.jsdelivr.net https://storage.googleapis.com https://accounts.google.com https://www.gstatic.com`;
+        }
+        if (directive.startsWith("style-src")) {
+          return `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`;
         }
         if (directive.startsWith("img-src")) {
           return "img-src 'self' data: https: blob: https://www.google.com";
