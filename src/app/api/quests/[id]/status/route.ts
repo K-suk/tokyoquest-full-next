@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
-import { questRateLimiter, withRateLimit } from "@/lib/rate-limit";
+import { apiRateLimiter } from "@/lib/rate-limit";
 
 // キャッシュを無効化
 export const dynamic = "force-dynamic";
@@ -26,15 +26,8 @@ export async function GET(
 ) {
   try {
     // 1) レート制限チェック
-    const ip =
-      request.headers.get("x-forwarded-for") ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
-    const userAgent = request.headers.get("user-agent") || "unknown";
-    const rateLimitId = `${ip}:${userAgent}`;
-
-    const { allowed } = withRateLimit(questRateLimiter, rateLimitId);
-    if (!allowed) {
+    const rateLimitResult = apiRateLimiter.checkRateLimit(request);
+    if (!rateLimitResult.allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
