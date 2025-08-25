@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { generateCSP } from './lib/csp';
 
 // セッション管理用のインメモリストア
 const sessionStore = new Map<
@@ -30,41 +31,8 @@ const RATE_LIMIT_CONFIG = {
   quest: { limit: 50, windowMs: 5 * 60 * 1000 }, // 5分で50リクエスト
 };
 
-// --- Nonce生成関数（Edge Runtime対応）---
-function generateNonce(): string {
-  // Edge Runtimeでも動作するようにcrypto.randomUUID()を使用
-  try {
-    // crypto.randomUUID()が利用可能なら使用
-    if (typeof crypto !== "undefined" && crypto.randomUUID) {
-      return btoa(crypto.randomUUID()).replace(/[+/=]/g, "").substring(0, 16);
-    }
-
-    // crypto.getRandomValues()が利用可能なら使用
-    if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-      const array = new Uint8Array(16);
-      crypto.getRandomValues(array);
-      return btoa(String.fromCharCode(...Array.from(array)))
-        .replace(/[+/=]/g, "")
-        .substring(0, 16);
-    }
-  } catch {
-    // cryptoが利用できない場合はエラーを投げる
-    console.error("Crypto API not available for nonce generation");
-    throw new Error("Secure nonce generation not available");
-  }
-
-  // フォールバックは削除（セキュリティ上の理由）
-  console.error("Nonce generation failed");
-  throw new Error("Secure nonce generation not available");
-}
-
-// --- CSP生成関数 ---
-function generateCSP(
-  nonce: string,
-  pathname: string = "",
-  isProduction: boolean = false
-) {
-  // パス別のCSP設定
+// パス固有のCSP処理関数
+function getPathSpecificCSP(pathname: string, nonce: string): string | null {
   if (
     pathname.startsWith("/api/miasanmia_admin/quests/") &&
     pathname.includes("/image")
@@ -103,7 +71,7 @@ function generateCSP(
     // ARページ用CSP（MediaPipe対応）
     return [
       "default-src 'self'",
-      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://cdn.jsdelivr.net https://storage.googleapis.com`,
+      `script-src 'nonce-${nonce}' 'strict-dynamic' https://cdn.jsdelivr.net https://storage.googleapis.com`,
       `style-src 'self' 'nonce-${nonce}'`,
       "img-src 'self' data: https:",
       "font-src 'self' data:",
@@ -116,97 +84,7 @@ function generateCSP(
     ].join("; ");
   }
 
-  if (pathname === "/login") {
-    // ログインページ用CSP（Google認証対応）
-    // 本番環境では strict-dynamic を削除して unsafe-inline を有効にする
-    if (isProduction) {
-      return [
-        "default-src 'self'",
-        `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://accounts.google.com https://www.gstatic.com https://www.google.com`,
-        `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
-        "img-src 'self' data: https: https://lh3.googleusercontent.com https://www.google.com",
-        "font-src 'self' https: data: https://fonts.gstatic.com",
-        "connect-src 'self' https: https://accounts.google.com https://www.googleapis.com",
-        "frame-src 'self' https://accounts.google.com",
-        "form-action 'self' https://accounts.google.com",
-        "frame-ancestors 'none'",
-        "object-src 'none'",
-        "base-uri 'self'",
-      ].join("; ");
-    } else {
-      // 開発環境では strict-dynamic も含める
-      return [
-        "default-src 'self'",
-        `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'strict-dynamic' https://accounts.google.com https://www.gstatic.com https://www.google.com`,
-        `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
-        "img-src 'self' data: https: https://lh3.googleusercontent.com https://www.google.com",
-        "font-src 'self' https: data: https://fonts.gstatic.com",
-        "connect-src 'self' https: https://accounts.google.com https://www.googleapis.com",
-        "frame-src 'self' https://accounts.google.com",
-        "form-action 'self' https://accounts.google.com",
-        "frame-ancestors 'none'",
-        "object-src 'none'",
-        "base-uri 'self'",
-      ].join("; ");
-    }
-  }
-  // 一般的なページ用CSP
-  const baseCSP = [
-    "default-src 'self'",
-    "base-uri 'self'",
-    "frame-ancestors 'none'",
-    "object-src 'none'",
-  ];
-
-  // 本番環境と開発環境でscript-srcとstyle-srcを分ける
-  if (isProduction) {
-    baseCSP.push(
-      `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com https://www.gstatic.com`,
-      `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`
-    );
-  } else {
-    baseCSP.push(
-      `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'strict-dynamic' https://cdn.jsdelivr.net https://accounts.google.com https://www.gstatic.com`,
-      `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`
-    );
-  }
-
-  baseCSP.push(
-    // 外部画像ドメインを適切に制限
-    "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com https://photos.app.goo.gl https://photos.fife.usercontent.google.com https://*.supabase.co https://www.google.com",
-    "font-src 'self' https: data: https://fonts.gstatic.com",
-    "connect-src 'self' https: wss: https://accounts.google.com https://www.googleapis.com",
-    "frame-src 'self' https://accounts.google.com",
-    "form-action 'self' /api/miasanmia_admin/quests/*/image https://accounts.google.com"
-  );
-
-  // 本番環境では upgrade-insecure-requests を追加
-  if (isProduction) {
-    baseCSP.push("upgrade-insecure-requests");
-  }
-
-  // 開発環境では追加の許可ドメインを含める
-  if (!isProduction) {
-    return baseCSP
-      .map((directive) => {
-        if (directive.startsWith("script-src")) {
-          return `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://storage.googleapis.com https://accounts.google.com https://www.gstatic.com`;
-        }
-        if (directive.startsWith("style-src")) {
-          return `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`;
-        }
-        if (directive.startsWith("img-src")) {
-          return "img-src 'self' data: https: blob: https://www.google.com";
-        }
-        if (directive.startsWith("connect-src")) {
-          return "connect-src 'self' https: wss: https://accounts.google.com https://www.googleapis.com";
-        }
-        return directive;
-      })
-      .join("; ");
-  }
-
-  return baseCSP.join("; ");
+  return null; // 標準のCSPを使用
 }
 
 // --- レート制限チェック関数 ---
@@ -258,13 +136,13 @@ function addRateLimitHeaders(
 // --- ヘッダーを追加する関数 ---
 function addSecurityHeaders(
   response: NextResponse,
-  nonce: string,
+  cspConfig: { csp: string; nonce: string },
   pathname?: string
 ) {
   const isProduction = process.env.NODE_ENV === "production";
 
-  // Nonceをレスポンスヘッダーに設定
-  response.headers.set("X-Nonce", nonce);
+  // Nonceをレスポンスヘッダーに設定（クライアントサイドで取得可能にする）
+  response.headers.set("X-Nonce", cspConfig.nonce);
 
   // 基本セキュリティヘッダー
   response.headers.set("X-Frame-Options", "DENY");
@@ -286,8 +164,9 @@ function addSecurityHeaders(
     "camera=(), microphone=(), geolocation=(), payment=(), usb=(), hid=(), serial=()"
   );
 
-  // CSP設定
-  const csp = generateCSP(nonce, pathname, isProduction);
+  // CSP設定 - パス固有のCSPがあればそれを使用、なければ標準CSPを使用
+  const pathSpecificCSP = getPathSpecificCSP(pathname || '', cspConfig.nonce);
+  const csp = pathSpecificCSP || cspConfig.csp;
   response.headers.set("Content-Security-Policy", csp);
 
   return response;
@@ -322,12 +201,12 @@ function isProtectedPath(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // リクエストごとにnonceを生成
-  let nonce: string;
+  // リクエストごとにnonceとCSPを生成
+  let cspConfig: { csp: string; nonce: string };
   try {
-    nonce = generateNonce();
+    cspConfig = generateCSP();
   } catch (error) {
-    console.error("Failed to generate nonce:", error);
+    console.error("Failed to generate CSP config:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -360,9 +239,9 @@ export async function middleware(request: NextRequest) {
         { error: "Rate limit exceeded. Please try again later." },
         { status: 429 }
       );
-      response.headers.set("x-nonce", nonce);
+      response.headers.set("x-nonce", cspConfig.nonce);
       addRateLimitHeaders(response, identifier, rateLimitConfig);
-      return addSecurityHeaders(response, nonce, pathname);
+      return addSecurityHeaders(response, cspConfig, pathname);
     }
   }
 
@@ -375,8 +254,8 @@ export async function middleware(request: NextRequest) {
   ) {
     const response = NextResponse.next();
     // nonceをリクエストヘッダーに追加（Next.jsのレンダリングで使用）
-    response.headers.set("x-nonce", nonce);
-    return addSecurityHeaders(response, nonce, pathname);
+    response.headers.set("x-nonce", cspConfig.nonce);
+    return addSecurityHeaders(response, cspConfig, pathname);
   }
 
   // ── 2) ログイン済みユーザーのチェック ──
@@ -423,8 +302,8 @@ export async function middleware(request: NextRequest) {
         const loginUrl = new URL("/login", request.url);
         loginUrl.searchParams.set("error", "Session expired due to inactivity");
         const response = NextResponse.redirect(loginUrl);
-        response.headers.set("x-nonce", nonce);
-        return addSecurityHeaders(response, nonce, pathname);
+        response.headers.set("x-nonce", cspConfig.nonce);
+        return addSecurityHeaders(response, cspConfig, pathname);
       }
 
       // セッション固定化攻撃の検出（開発環境では無効化）
@@ -441,8 +320,8 @@ export async function middleware(request: NextRequest) {
           "Session invalidated due to IP change"
         );
         const response = NextResponse.redirect(loginUrl);
-        response.headers.set("x-nonce", nonce);
-        return addSecurityHeaders(response, nonce, pathname);
+        response.headers.set("x-nonce", cspConfig.nonce);
+        return addSecurityHeaders(response, cspConfig, pathname);
       }
     }
   }
@@ -450,16 +329,16 @@ export async function middleware(request: NextRequest) {
   // ── 3) ログイン済みユーザーが /login または / にアクセスした場合、/home にリダイレクト ──
   if (token && (pathname === "/login" || pathname === "/")) {
     const response = NextResponse.redirect(new URL("/home", request.url));
-    response.headers.set("x-nonce", nonce);
-    return addSecurityHeaders(response, nonce, pathname);
+    response.headers.set("x-nonce", cspConfig.nonce);
+    return addSecurityHeaders(response, cspConfig, pathname);
   }
 
   // ── 4) /login のボットチェック＋ヘッダー追加（未ログインユーザーのみ） ──
   if (pathname === "/login") {
     // ボット検出省略…
     const response = NextResponse.next();
-    response.headers.set("x-nonce", nonce);
-    return addSecurityHeaders(response, nonce, pathname);
+    response.headers.set("x-nonce", cspConfig.nonce);
+    return addSecurityHeaders(response, cspConfig, pathname);
   }
 
   // ── 5) /play, /privacy, /term, /sitemap.xml, /robots.txt ──
@@ -471,8 +350,8 @@ export async function middleware(request: NextRequest) {
     pathname === "/robots.txt"
   ) {
     const response = NextResponse.next();
-    response.headers.set("x-nonce", nonce);
-    return addSecurityHeaders(response, nonce, pathname);
+    response.headers.set("x-nonce", cspConfig.nonce);
+    return addSecurityHeaders(response, cspConfig, pathname);
   }
 
   // ── 6) 認証必須パス ──
@@ -481,15 +360,15 @@ export async function middleware(request: NextRequest) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
       const response = NextResponse.redirect(loginUrl);
-      response.headers.set("x-nonce", nonce);
-      return addSecurityHeaders(response, nonce, pathname);
+      response.headers.set("x-nonce", cspConfig.nonce);
+      return addSecurityHeaders(response, cspConfig, pathname);
     }
   }
 
   // ── 7) 上記以外は通常応答＋ヘッダー追加 ──
   const response = NextResponse.next();
-  response.headers.set("x-nonce", nonce);
-  return addSecurityHeaders(response, nonce, pathname);
+  response.headers.set("x-nonce", cspConfig.nonce);
+  return addSecurityHeaders(response, cspConfig, pathname);
 }
 
 export const config = {

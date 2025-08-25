@@ -4,6 +4,7 @@ import { Providers } from "@/components/Providers";
 import type { ReactNode } from "react";
 import ConditionalNavbar from "@/components/ConditionalNavbar";
 import ThemeInitializer from "@/components/ThemeInitializer";
+import { NonceProvider } from "@/components/NonceProvider";
 import { headers } from "next/headers";
 
 export const metadata = {
@@ -40,17 +41,24 @@ export default async function RootLayout({
 }: {
   children: ReactNode;
 }) {
+  // middlewareで設定されたnonceを取得
+  const headersList = await headers();
+  const nonce = headersList.get('x-nonce') || '';
+
   return (
     <html lang="ja" suppressHydrationWarning className="light">
       <head>
-        {/* インラインスクリプトを完全に削除 - セキュリティ強化 */}
+        {/* CSP nonceをmetaタグに設定 */}
+        <meta name="csp-nonce" content={nonce} />
       </head>
       <body className="light">
-        <Providers>
-          <ThemeInitializer />
-          <ConditionalNavbar />
-          {children}
-        </Providers>
+        <NonceProvider nonce={nonce}>
+          <Providers>
+            <ThemeInitializer />
+            <ConditionalNavbar />
+            {children}
+          </Providers>
+        </NonceProvider>
       </body>
     </html>
   );
