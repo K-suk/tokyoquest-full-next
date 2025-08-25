@@ -299,14 +299,14 @@ export async function middleware(request: NextRequest) {
       if (timeSinceLastActivity > inactivityLimit) {
         // セッションが期限切れの場合、ログアウト処理
         sessionStore.delete(sessionId);
-        
+
         // 既にログインページにいる場合はリダイレクトしない
         if (pathname === "/login") {
           const response = NextResponse.next();
           response.headers.set("x-nonce", cspConfig.nonce);
           return addSecurityHeaders(response, cspConfig, pathname);
         }
-        
+
         const loginUrl = new URL("/login", request.url);
         loginUrl.searchParams.set("error", "Session expired due to inactivity");
         const response = NextResponse.redirect(loginUrl);
@@ -322,14 +322,14 @@ export async function middleware(request: NextRequest) {
       ) {
         // IPアドレスが変更された場合、セッションを無効化
         sessionStore.delete(sessionId);
-        
+
         // 既にログインページにいる場合はリダイレクトしない
         if (pathname === "/login") {
           const response = NextResponse.next();
           response.headers.set("x-nonce", cspConfig.nonce);
           return addSecurityHeaders(response, cspConfig, pathname);
         }
-        
+
         const loginUrl = new URL("/login", request.url);
         loginUrl.searchParams.set(
           "error",
@@ -344,6 +344,13 @@ export async function middleware(request: NextRequest) {
 
   // ── 3) ログイン済みユーザーが /login または / にアクセスした場合、/home にリダイレクト ──
   if (token && (pathname === "/login" || pathname === "/")) {
+    const response = NextResponse.redirect(new URL("/home", request.url));
+    response.headers.set("x-nonce", cspConfig.nonce);
+    return addSecurityHeaders(response, cspConfig, pathname);
+  }
+
+  // ── 3.5) 未ログインユーザーが / にアクセスした場合、/home にリダイレクト ──
+  if (!token && pathname === "/") {
     const response = NextResponse.redirect(new URL("/home", request.url));
     response.headers.set("x-nonce", cspConfig.nonce);
     return addSecurityHeaders(response, cspConfig, pathname);

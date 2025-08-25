@@ -8,7 +8,7 @@ import { useState, useEffect, Suspense } from "react";
 
 function LoginPageContent() {
     const searchParams = useSearchParams();
-    const callbackUrl = searchParams.get('callbackUrl') || '/profile';
+    const callbackUrl = searchParams.get('callbackUrl') || '/home';
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [imageError, setImageError] = useState({
@@ -28,17 +28,17 @@ function LoginPageContent() {
             const urlObj = new URL(url, window.location.origin);
             // 同一オリジンのみ許可
             if (urlObj.origin !== window.location.origin) {
-                return '/profile';
+                return '/home';
             }
             // 危険なパスを除外
             if (urlObj.pathname.startsWith('/api/') ||
                 urlObj.pathname.startsWith('/_next/') ||
                 urlObj.pathname.startsWith('/admin/')) {
-                return '/profile';
+                return '/home';
             }
             return url;
         } catch {
-            return '/profile';
+            return '/home';
         }
     };
 
