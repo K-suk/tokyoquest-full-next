@@ -22,14 +22,32 @@ export class AdvancedRateLimiter {
 
   // クライアント識別子を生成
   private generateIdentifier(request: NextRequest): string {
-    const ip =
-      request.headers.get("x-forwarded-for") ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
-    const userAgent = request.headers.get("user-agent") || "unknown";
-    const userId = request.headers.get("x-user-id") || "anonymous";
+    // For authenticated users, use user ID as primary identifier
+    const userId = request.headers.get("x-user-id");
+    if (userId && userId !== "anonymous") {
+      return `user:${userId}`;
+    }
 
-    return `${ip}:${userAgent}:${userId}`;
+    // For unauthenticated users, use IP with validation
+    // Note: In production, consider using a trusted proxy configuration
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const realIp = request.headers.get("x-real-ip");
+
+    // Take the first IP from x-forwarded-for (original client IP)
+    const ip = forwardedFor?.split(",")[0]?.trim() || realIp || "unknown";
+
+    // Generate a hash of user-agent to prevent easy manipulation
+    // while still allowing rate limiting per client
+    const userAgent = request.headers.get("user-agent") || "";
+    const uaHash = userAgent
+      ? require("crypto")
+          .createHash("sha256")
+          .update(userAgent)
+          .digest("hex")
+          .substring(0, 8)
+      : "no-ua";
+
+    return `ip:${ip}:${uaHash}`;
   }
 
   // Rate Limitチェック
@@ -64,11 +82,11 @@ export class AdvancedRateLimiter {
     }
 
     // ブロック期間中かチェック
-    if (entry.blocked && now < entry.resetTime + this.blockDurationMs) {
+    if (entry.blocked && now < entry.resetTime) {
       return {
         allowed: false,
         remaining: 0,
-        resetTime: entry.resetTime + this.blockDurationMs,
+        resetTime: entry.resetTime,
         blocked: true,
       };
     }
@@ -118,7 +136,11 @@ export class AdvancedRateLimiter {
   private cleanup(): void {
     const now = Date.now();
     for (const [key, entry] of this.store.entries()) {
-      if (now > entry.resetTime + this.blockDurationMs) {
+      // ブロックされていないエントリ: resetTimeが過ぎたら削除
+      // ブロックされているエントリ: resetTimeが過ぎたら削除（resetTimeは既にブロック期間を含む）
+      const shouldDelete = now > entry.resetTime;
+
+      if (shouldDelete) {
         this.store.delete(key);
       }
     }

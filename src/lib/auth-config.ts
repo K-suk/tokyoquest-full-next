@@ -5,7 +5,16 @@ import type { AuthOptions } from "next-auth";
 import { randomUUID } from "crypto";
 import { securityLogger } from "./logger";
 
-// セッション固定化対策のためのセッションストア
+// セッション固定化対策のためのセッションストア（メモリ制限付き）
+
+// セッションストアの設定
+const SESSION_STORE_CONFIG = {
+  MAX_SIZE: process.env.NODE_ENV === "test" ? 5 : 1000, // テスト環境では小さなサイズ
+  MAX_AGE: 24 * 60 * 60 * 1000, // 24時間
+  INACTIVITY_TIMEOUT: 30 * 60 * 1000, // 30分
+  CLEANUP_INTERVAL: 10 * 60 * 1000, // 10分
+} as const;
+
 const activeSessionTokens = new Map<
   string,
   {
@@ -17,6 +26,62 @@ const activeSessionTokens = new Map<
     userAgent?: string;
   }
 >();
+
+// LRUエビクション戦略でセッションを削除
+function evictOldestSessions(targetSize: number): void {
+  if (activeSessionTokens.size <= targetSize) {
+    return;
+  }
+
+  // lastAccessでソートして最も古いセッションを削除
+  const entries = Array.from(activeSessionTokens.entries());
+  entries.sort((a, b) => a[1].lastAccess - b[1].lastAccess);
+
+  const toDelete = entries.slice(0, activeSessionTokens.size - targetSize);
+
+  for (const [tokenId, sessionData] of toDelete) {
+    activeSessionTokens.delete(tokenId);
+    securityLogger.logSessionSecurityEvent(
+      sessionData.ipAddress || "unknown",
+      sessionData.userAgent || "unknown",
+      sessionData.userId,
+      "SESSION_EVICTED",
+      {
+        sessionId: sessionData.sessionId,
+        reason: "memory_limit_exceeded",
+        lastAccess: new Date(sessionData.lastAccess).toISOString(),
+      }
+    );
+  }
+}
+
+// セッションを安全に追加（サイズ制限チェック付き）
+function addSessionSafely(
+  tokenId: string,
+  sessionData: {
+    userId: string;
+    sessionId: string;
+    createdAt: number;
+    lastAccess: number;
+    ipAddress?: string;
+    userAgent?: string;
+  }
+): void {
+  // サイズ制限に達している場合、古いセッションを削除
+  if (activeSessionTokens.size >= SESSION_STORE_CONFIG.MAX_SIZE) {
+    evictOldestSessions(SESSION_STORE_CONFIG.MAX_SIZE - 1);
+  }
+
+  activeSessionTokens.set(tokenId, sessionData);
+}
+
+// セッションアクセス時のlastAccess更新
+function updateSessionAccess(tokenId: string): void {
+  const sessionData = activeSessionTokens.get(tokenId);
+  if (sessionData) {
+    sessionData.lastAccess = Date.now();
+  }
+}
 
 // セッション無効化関数
 export function invalidateUserSessions(userId: string): void {
@@ -34,25 +99,118 @@ export function invalidateUserSessions(userId: string): void {
   }
 }
 
-// 古いセッションのクリーンアップ
+// テスト用: セッションストアの状態を取得
+export function getActiveSessionTokens() {
+  return new Map(activeSessionTokens);
+}
+
+// セッションストアの統計情報を取得
+export function getSessionStoreStats() {
+  const now = Date.now();
+  const stats = {
+    totalSessions: activeSessionTokens.size,
+    maxSize: SESSION_STORE_CONFIG.MAX_SIZE,
+    usagePercentage:
+      (activeSessionTokens.size / SESSION_STORE_CONFIG.MAX_SIZE) * 100,
+    expiredSessions: 0,
+    inactiveSessions: 0,
+  };
+
+  for (const sessionData of activeSessionTokens.values()) {
+    if (now - sessionData.createdAt > SESSION_STORE_CONFIG.MAX_AGE) {
+      stats.expiredSessions++;
+    }
+    if (
+      now - sessionData.lastAccess >
+      SESSION_STORE_CONFIG.INACTIVITY_TIMEOUT
+    ) {
+      stats.inactiveSessions++;
+    }
+  }
+
+  return stats;
+}
+
+// テスト用: セッションストアをクリア
+export function clearActiveSessionTokens() {
+  activeSessionTokens.clear();
+}
+
+// テスト用: セッションを手動で追加
+export function addTestSession(
+  tokenId: string,
+  sessionData: {
+    userId: string;
+    sessionId: string;
+    createdAt: number;
+    lastAccess: number;
+    ipAddress?: string;
+    userAgent?: string;
+  }
+) {
+  addSessionSafely(tokenId, sessionData);
+}
+
+// テスト用: JWTコールバックのロジックを実行
+export async function testJwtCallback(params: {
+  token: any;
+  user: any;
+  account: any;
+  trigger?: "signIn" | "signUp" | "update";
+}) {
+  const jwtCallback = authOptions.callbacks?.jwt;
+  if (!jwtCallback) {
+    throw new Error("JWT callback not found");
+  }
+  return await jwtCallback(params);
+}
+
+// 古いセッションのクリーンアップ（改善版）
 function cleanupExpiredSessions(): void {
   const now = Date.now();
-  const maxAge = 24 * 60 * 60 * 1000; // 24時間
+  let cleanedCount = 0;
 
   for (const [tokenId, sessionData] of activeSessionTokens.entries()) {
-    if (
-      now - sessionData.createdAt > maxAge ||
-      now - sessionData.lastAccess > 30 * 60 * 1000
-    ) {
+    const isExpired =
+      now - sessionData.createdAt > SESSION_STORE_CONFIG.MAX_AGE;
+    const isInactive =
+      now - sessionData.lastAccess > SESSION_STORE_CONFIG.INACTIVITY_TIMEOUT;
+
+    if (isExpired || isInactive) {
       activeSessionTokens.delete(tokenId);
+      cleanedCount++;
+
+      securityLogger.logSessionSecurityEvent(
+        sessionData.ipAddress || "unknown",
+        sessionData.userAgent || "unknown",
+        sessionData.userId,
+        "SESSION_CLEANED_UP",
+        {
+          sessionId: sessionData.sessionId,
+          reason: isExpired ? "expired" : "inactive",
+          createdAt: new Date(sessionData.createdAt).toISOString(),
+          lastAccess: new Date(sessionData.lastAccess).toISOString(),
+        }
+      );
     }
+  }
+
+  // クリーンアップ後にサイズ制限をチェック
+  if (activeSessionTokens.size > SESSION_STORE_CONFIG.MAX_SIZE * 0.9) {
+    evictOldestSessions(Math.floor(SESSION_STORE_CONFIG.MAX_SIZE * 0.8));
+  }
+
+  if (cleanedCount > 0) {
+    console.log(
+      `[SESSION_CLEANUP] Removed ${cleanedCount} expired/inactive sessions. Current size: ${activeSessionTokens.size}`
+    );
   }
 }
 
-// 定期的なクリーンアップ（10分ごと）
+// 定期的なクリーンアップ（設定された間隔で）
 // 開発環境では無効化（リダイレクトループを防ぐため）
 if (process.env.NODE_ENV === "production") {
-  setInterval(cleanupExpiredSessions, 10 * 60 * 1000);
+  setInterval(cleanupExpiredSessions, SESSION_STORE_CONFIG.CLEANUP_INTERVAL);
 }
 
 export const authOptions: AuthOptions = {
@@ -155,8 +313,8 @@ export const authOptions: AuthOptions = {
         token.lastActivity = now; // 最終アクティビティ
         token.userId = user.id; // ユーザーID追加
 
-        // 新しいセッションを追跡
-        activeSessionTokens.set(newTokenId, {
+        // 新しいセッションを安全に追跡（サイズ制限チェック付き）
+        addSessionSafely(newTokenId, {
           userId: user.id || "unknown",
           sessionId: newSessionId,
           createdAt: Date.now(),
@@ -186,13 +344,16 @@ export const authOptions: AuthOptions = {
       // セッション追跡の検証（初回セッション以外）
       const sessionData = activeSessionTokens.get(token.jti as string);
       if (!sessionData) {
-        // セッションが見つからない場合、新しいセッションとして登録
-        activeSessionTokens.set(token.jti as string, {
+        // セッションが見つからない場合、新しいセッションとして安全に登録
+        addSessionSafely(token.jti as string, {
           userId: token.userId as string,
           sessionId: token.sessionId as string,
           createdAt: Date.now(),
           lastAccess: Date.now(),
         });
+      } else {
+        // セッションアクセス時にlastAccessを更新（LRUサポート）
+        updateSessionAccess(token.jti as string);
       }
 
       // 既存トークンの有効期限チェック
@@ -209,8 +370,11 @@ export const authOptions: AuthOptions = {
       ) {
         const timeSinceLastActivity = now - token.lastActivity;
 
-        // 30分以上アクティビティがない場合はセッションを無効化
-        if (timeSinceLastActivity > 30 * 60) {
+        // 設定された時間以上アクティビティがない場合はセッションを無効化
+        if (
+          timeSinceLastActivity >
+          SESSION_STORE_CONFIG.INACTIVITY_TIMEOUT / 1000
+        ) {
           activeSessionTokens.delete(token.jti as string);
           throw new Error("Session expired due to inactivity");
         }

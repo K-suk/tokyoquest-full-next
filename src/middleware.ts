@@ -31,7 +31,7 @@ const RATE_LIMIT_CONFIG = {
 };
 
 // --- Nonce生成関数（Edge Runtime対応）---
-function generateNonce() {
+function generateNonce(): string {
   // Edge Runtimeでも動作するようにcrypto.randomUUID()を使用
   try {
     // crypto.randomUUID()が利用可能なら使用
@@ -54,6 +54,7 @@ function generateNonce() {
   }
 
   // フォールバックは削除（セキュリティ上の理由）
+  console.error("Nonce generation failed");
   throw new Error("Secure nonce generation not available");
 }
 
@@ -270,7 +271,16 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // リクエストごとにnonceを生成
-  const nonce = generateNonce();
+  let nonce: string;
+  try {
+    nonce = generateNonce();
+  } catch (error) {
+    console.error("Failed to generate nonce:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
 
   // レート制限の識別子を生成
   const ip =

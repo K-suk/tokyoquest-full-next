@@ -218,15 +218,17 @@ export async function POST(
     }
 
     // 11) 拡張子とMIMEタイプの整合性チェック
-    const expectedMimeType = isImage
-      ? `image/${detectedType.ext}`
-      : `video/${detectedType.ext}`;
-    if (detectedType.mime !== expectedMimeType) {
+    // Validate that the detected MIME type matches the declared type
+    const mimeTypeMatches = isImage
+      ? allowedImageTypes.includes(detectedType.mime)
+      : allowedVideoTypes.includes(detectedType.mime);
+
+    if (!mimeTypeMatches) {
       securityLogger.logFileUploadViolation(
         request.headers.get("x-forwarded-for") || "unknown",
         request.headers.get("user-agent") || "unknown",
         "mime_extension_mismatch",
-        `MIME type ${detectedType.mime} doesn't match extension ${detectedType.ext}`
+        `Detected MIME type ${detectedType.mime} not in allowed list`
       );
       return NextResponse.json(
         { error: "File extension and content type mismatch" },

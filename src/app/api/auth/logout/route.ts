@@ -7,7 +7,15 @@ import { invalidateSession } from "@/lib/session-security";
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    const { userId, reason } = await request.json();
+    const body = await request.json();
+    const userId =
+      typeof body.userId === "string"
+        ? body.userId.substring(0, 100)
+        : undefined;
+    const reason =
+      typeof body.reason === "string"
+        ? body.reason.substring(0, 200)
+        : undefined;
 
     const clientIP =
       request.headers.get("x-forwarded-for") ||

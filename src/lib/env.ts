@@ -41,21 +41,18 @@ const envSchema = z.object({
     .min(1, "NEXTAUTH_SECRET is required")
     .min(32, "NEXTAUTH_SECRET must be at least 32 characters long")
     .refine((value) => {
-      // より厳密なbase64検証
+      // base64文字のみを含むかチェック
+      if (!/^[A-Za-z0-9+/=]+$/.test(value)) {
+        return false;
+      }
+      // 実際にbase64デコード可能かチェック
       try {
-        // base64文字のみで構成されているかチェック
-        const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
-        if (!base64Regex.test(value)) {
-          return false;
-        }
-
-        // 実際にbase64デコードできるかチェック
         const decoded = Buffer.from(value, "base64");
-        return decoded.length >= 24; // 最低24バイト（192ビット）
+        return decoded.length >= 24; // 最低192ビット（24バイト）
       } catch {
         return false;
       }
-    }, "NEXTAUTH_SECRET must be a valid base64 encoded string with at least 24 bytes"),
+    }, "NEXTAUTH_SECRET must be a valid base64 encoded string of at least 24 bytes"),
 
   NEXTAUTH_URL: z
     .string()
@@ -98,10 +95,24 @@ const productionEnvSchema = envSchema.extend({
     ),
   NEXTAUTH_SECRET: z
     .string()
+    .min(1, "NEXTAUTH_SECRET is required")
     .min(
       64,
       "NEXTAUTH_SECRET should be at least 64 characters long in production"
-    ),
+    )
+    .refine((value) => {
+      // base64文字のみを含むかチェック
+      if (!/^[A-Za-z0-9+/=]+$/.test(value)) {
+        return false;
+      }
+      // 実際にbase64デコード可能かチェック
+      try {
+        const decoded = Buffer.from(value, "base64");
+        return decoded.length >= 24; // 最低192ビット（24バイト）
+      } catch {
+        return false;
+      }
+    }, "NEXTAUTH_SECRET must be a valid base64 encoded string of at least 24 bytes"),
   ADMIN_SECURITY_TOKEN: z
     .string()
     .min(32, "ADMIN_SECURITY_TOKEN is required in production"),
@@ -114,27 +125,6 @@ export function validateEnv() {
 
   try {
     const result = schema.parse(process.env);
-
-    // 本番環境での追加検証
-    if (isProduction) {
-      // セキュリティトークンの強度チェック
-      if (
-        result.ADMIN_SECURITY_TOKEN &&
-        result.ADMIN_SECURITY_TOKEN.length < 32
-      ) {
-        throw new Error(
-          "ADMIN_SECURITY_TOKEN must be at least 32 characters long"
-        );
-      }
-
-      // NEXTAUTH_SECRETの強度警告
-      if (result.NEXTAUTH_SECRET.length < 64) {
-        console.warn(
-          "Warning: NEXTAUTH_SECRET should be at least 64 characters long in production"
-        );
-      }
-    }
-
     return result;
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -149,17 +139,18 @@ export function validateEnv() {
 
 // 環境変数の型定義（Zodスキーマから自動生成）
 export type Env = z.infer<typeof envSchema>;
+export type ProductionEnv = z.infer<typeof productionEnvSchema>;
 
 // 型安全な環境変数アクセス
-export function getEnv(): Env {
+export function getEnv(): Env | ProductionEnv {
   return validateEnv();
 }
 
 // 環境変数の検証結果をキャッシュ
-let cachedEnv: Env | null = null;
+let cachedEnv: Env | ProductionEnv | null = null;
 
 // キャッシュ付きの環境変数アクセス
-export function getCachedEnv(): Env {
+export function getCachedEnv(): Env | ProductionEnv {
   if (!cachedEnv) {
     cachedEnv = validateEnv();
   }

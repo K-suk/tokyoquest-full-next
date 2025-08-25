@@ -15,7 +15,7 @@ export interface SessionInfo {
 }
 
 // セッション管理用のインメモリストア
-const sessionStore = new Map<string, SessionInfo>();
+export const sessionStore = new Map<string, SessionInfo>();
 
 // セッションの有効期限設定（秒）
 const SESSION_TIMEOUT = 30 * 60; // 30分
@@ -44,7 +44,7 @@ export function createSession(
       (a, b) => a.loginTime - b.loginTime
     )[0];
     if (oldestSession) {
-      sessionStore.delete(oldestSession.sessionId);
+      invalidateSession(oldestSession.sessionId, "max_sessions_exceeded");
       securityLogger.logSessionSecurityEvent(
         ip,
         userAgent,
@@ -113,8 +113,7 @@ export function updateSession(
     );
 
     // セッションを無効化
-    session.isActive = false;
-    sessionStore.delete(sessionId);
+    invalidateSession(sessionId, "ip_change");
     return false;
   }
 
@@ -156,8 +155,7 @@ export function validateSession(
       }
     );
 
-    session.isActive = false;
-    sessionStore.delete(sessionId);
+    invalidateSession(sessionId, "timeout");
     return null;
   }
 
@@ -175,8 +173,7 @@ export function validateSession(
       }
     );
 
-    session.isActive = false;
-    sessionStore.delete(sessionId);
+    invalidateSession(sessionId, "ip_mismatch");
     return null;
   }
 
@@ -249,7 +246,7 @@ export function cleanupExpiredSessions(): void {
   }
 
   expiredSessions.forEach((sessionId) => {
-    sessionStore.delete(sessionId);
+    invalidateSession(sessionId, "cleanup_timeout");
   });
 
   if (expiredSessions.length > 0) {

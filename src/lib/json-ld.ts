@@ -42,12 +42,25 @@ export function createSafeJsonLd<T>(
     const jsonString = JSON.stringify(validatedData);
 
     // 追加のエスケープ処理（script injection対策）
-    return jsonString
-      .replace(/</g, "\\u003c")
-      .replace(/>/g, "\\u003e")
-      .replace(/&/g, "\\u0026")
-      .replace(/'/g, "\\u0027")
-      .replace(/"/g, "\\u0022");
+    return (
+      jsonString
+        .replace(/</g, "\\u003c")
+        .replace(/>/g, "\\u003e")
+        .replace(/\u2028/g, "\\u2028")
+        .replace(/\u2029/g, "\\u2029")
+        // 危険なJavaScriptイベントハンドラーをエスケープ
+        .replace(/on\w+\s*=/gi, "\\u006f\\u006e\\u0020\\u003d")
+        // 危険なプロトコルをエスケープ
+        .replace(
+          /javascript:/gi,
+          "\\u006a\\u0061\\u0076\\u0061\\u0073\\u0063\\u0072\\u0069\\u0070\\u0074\\u003a"
+        )
+        .replace(/data:/gi, "\\u0064\\u0061\\u0074\\u0061\\u003a")
+        .replace(
+          /vbscript:/gi,
+          "\\u0076\\u0062\\u0073\\u0063\\u0072\\u0069\\u0070\\u0074\\u003a"
+        )
+    );
   } catch (error) {
     console.error("JSON-LD validation failed:", error);
     return "{}"; // 安全なフォールバック
