@@ -118,20 +118,37 @@ function generateCSP(
 
   if (pathname === "/login") {
     // ログインページ用CSP（Google認証対応）
-    // Next.jsのインラインスクリプト/スタイルとGoogle認証のため、unsafe-inlineを許可
-    return [
-      "default-src 'self'",
-      `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'strict-dynamic' https://accounts.google.com https://www.gstatic.com https://www.google.com`,
-      `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
-      "img-src 'self' data: https: https://lh3.googleusercontent.com https://www.google.com",
-      "font-src 'self' https: data: https://fonts.gstatic.com",
-      "connect-src 'self' https: https://accounts.google.com https://www.googleapis.com",
-      "frame-src 'self' https://accounts.google.com",
-      "form-action 'self' https://accounts.google.com",
-      "frame-ancestors 'none'",
-      "object-src 'none'",
-      "base-uri 'self'",
-    ].join("; ");
+    // 本番環境では strict-dynamic を削除して unsafe-inline を有効にする
+    if (isProduction) {
+      return [
+        "default-src 'self'",
+        `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://accounts.google.com https://www.gstatic.com https://www.google.com`,
+        `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
+        "img-src 'self' data: https: https://lh3.googleusercontent.com https://www.google.com",
+        "font-src 'self' https: data: https://fonts.gstatic.com",
+        "connect-src 'self' https: https://accounts.google.com https://www.googleapis.com",
+        "frame-src 'self' https://accounts.google.com",
+        "form-action 'self' https://accounts.google.com",
+        "frame-ancestors 'none'",
+        "object-src 'none'",
+        "base-uri 'self'",
+      ].join("; ");
+    } else {
+      // 開発環境では strict-dynamic も含める
+      return [
+        "default-src 'self'",
+        `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'strict-dynamic' https://accounts.google.com https://www.gstatic.com https://www.google.com`,
+        `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
+        "img-src 'self' data: https: https://lh3.googleusercontent.com https://www.google.com",
+        "font-src 'self' https: data: https://fonts.gstatic.com",
+        "connect-src 'self' https: https://accounts.google.com https://www.googleapis.com",
+        "frame-src 'self' https://accounts.google.com",
+        "form-action 'self' https://accounts.google.com",
+        "frame-ancestors 'none'",
+        "object-src 'none'",
+        "base-uri 'self'",
+      ].join("; ");
+    }
   }
   // 一般的なページ用CSP
   const baseCSP = [
@@ -139,15 +156,29 @@ function generateCSP(
     "base-uri 'self'",
     "frame-ancestors 'none'",
     "object-src 'none'",
-    `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'strict-dynamic' https://cdn.jsdelivr.net https://accounts.google.com https://www.gstatic.com`,
-    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
+  ];
+
+  // 本番環境と開発環境でscript-srcとstyle-srcを分ける
+  if (isProduction) {
+    baseCSP.push(
+      `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com https://www.gstatic.com`,
+      `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`
+    );
+  } else {
+    baseCSP.push(
+      `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'strict-dynamic' https://cdn.jsdelivr.net https://accounts.google.com https://www.gstatic.com`,
+      `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`
+    );
+  }
+
+  baseCSP.push(
     // 外部画像ドメインを適切に制限
     "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com https://photos.app.goo.gl https://photos.fife.usercontent.google.com https://*.supabase.co https://www.google.com",
     "font-src 'self' https: data: https://fonts.gstatic.com",
     "connect-src 'self' https: wss: https://accounts.google.com https://www.googleapis.com",
     "frame-src 'self' https://accounts.google.com",
-    "form-action 'self' /api/miasanmia_admin/quests/*/image https://accounts.google.com",
-  ];
+    "form-action 'self' /api/miasanmia_admin/quests/*/image https://accounts.google.com"
+  );
 
   // 本番環境では upgrade-insecure-requests を追加
   if (isProduction) {
@@ -159,7 +190,7 @@ function generateCSP(
     return baseCSP
       .map((directive) => {
         if (directive.startsWith("script-src")) {
-          return `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'strict-dynamic' https://cdn.jsdelivr.net https://storage.googleapis.com https://accounts.google.com https://www.gstatic.com`;
+          return `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://storage.googleapis.com https://accounts.google.com https://www.gstatic.com`;
         }
         if (directive.startsWith("style-src")) {
           return `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`;
