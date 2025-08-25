@@ -72,7 +72,13 @@ if (process.env.DATABASE_URL && typeof window === "undefined") {
       console.log("✅ Prisma Client connected successfully");
     })
     .catch((error) => {
-      console.error("❌ Prisma Client connection failed:", error);
+      if (process.env.NODE_ENV === "development") {
+        console.error("❌ Prisma Client connection failed:", error);
+      } else {
+        console.error(
+          "❌ Prisma Client connection failed: Database connection error"
+        );
+      }
     });
 
   // グレースフルシャットダウン

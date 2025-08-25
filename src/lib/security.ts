@@ -9,9 +9,9 @@ import {
   questRateLimiter,
   authRateLimiter,
   adminRateLimiter,
-  RateLimiter,
+  AdvancedRateLimiter,
 } from "./rate-limit";
-import { validateInput, questIdSchema } from "./validation";
+import { validateInputWithResult, questIdSchema } from "./validation";
 import { Session } from "next-auth";
 import crypto from "crypto";
 
@@ -142,7 +142,7 @@ export function validateRequest<T>(
 ): { success: true; data: T } | { success: false; response: NextResponse } {
   try {
     const body = request.body ? request.json() : {};
-    const result = validateInput(schema, body);
+    const result = validateInputWithResult(schema, body);
 
     if (!result.success) {
       return {
@@ -261,7 +261,7 @@ export function createSecureApiHandler(
   options: {
     requireAuth?: boolean;
     requireAdmin?: boolean;
-    rateLimiter?: RateLimiter;
+    rateLimiter?: AdvancedRateLimiter;
     validateSchema?: any;
   } = {}
 ) {
@@ -347,4 +347,36 @@ export function addCSRFTokenToHeaders(
     ...headers,
     "X-CSRF-Token": generateCSRFToken(),
   };
+}
+
+// CSRF検証ミドルウェア
+export function validateCSRFRequest(
+  request: NextRequest
+): { success: true } | { success: false; response: NextResponse } {
+  const csrfToken = request.headers.get("x-csrf-token");
+  const sessionToken =
+    request.cookies.get("next-auth.session-token")?.value ||
+    request.cookies.get("__Secure-next-auth.session-token")?.value;
+
+  if (!csrfToken || !sessionToken) {
+    return {
+      success: false,
+      response: NextResponse.json(
+        { error: "CSRF token missing" },
+        { status: 403, headers: securityHeaders }
+      ),
+    };
+  }
+
+  if (!validateCSRFToken(csrfToken, sessionToken)) {
+    return {
+      success: false,
+      response: NextResponse.json(
+        { error: "Invalid CSRF token" },
+        { status: 403, headers: securityHeaders }
+      ),
+    };
+  }
+
+  return { success: true };
 }

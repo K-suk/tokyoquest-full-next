@@ -47,7 +47,7 @@ function generateNonce(): string {
         .replace(/[+/=]/g, "")
         .substring(0, 16);
     }
-  } catch (error) {
+  } catch {
     // cryptoが利用できない場合はエラーを投げる
     console.error("Crypto API not available for nonce generation");
     throw new Error("Secure nonce generation not available");
@@ -120,8 +120,8 @@ function generateCSP(
     // ログインページ用CSP（Google認証対応）
     return [
       "default-src 'self'",
-      `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://accounts.google.com https://www.gstatic.com https://www.google.com`,
-      `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
+      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://accounts.google.com https://www.gstatic.com https://www.google.com`,
+      `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
       "img-src 'self' data: https: https://lh3.googleusercontent.com https://www.google.com",
       "font-src 'self' https: data: https://fonts.gstatic.com",
       "connect-src 'self' https: https://accounts.google.com https://www.googleapis.com",
@@ -132,15 +132,14 @@ function generateCSP(
       "base-uri 'self'",
     ].join("; ");
   }
-
   // 一般的なページ用CSP
   const baseCSP = [
     "default-src 'self'",
     "base-uri 'self'",
     "frame-ancestors 'none'",
     "object-src 'none'",
-    `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com https://www.gstatic.com`,
-    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://cdn.jsdelivr.net https://accounts.google.com https://www.gstatic.com`,
+    `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
     // 外部画像ドメインを適切に制限
     "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com https://photos.app.goo.gl https://photos.fife.usercontent.google.com https://*.supabase.co https://www.google.com",
     "font-src 'self' https: data: https://fonts.gstatic.com",
@@ -159,7 +158,7 @@ function generateCSP(
     return baseCSP
       .map((directive) => {
         if (directive.startsWith("script-src")) {
-          return `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://cdn.jsdelivr.net https://storage.googleapis.com https://accounts.google.com https://www.gstatic.com`;
+          return `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://cdn.jsdelivr.net https://storage.googleapis.com https://accounts.google.com https://www.gstatic.com`;
         }
         if (directive.startsWith("img-src")) {
           return "img-src 'self' data: https: blob: https://www.google.com";
@@ -178,54 +177,44 @@ function generateCSP(
 // --- レート制限チェック関数 ---
 function checkRateLimit(
   identifier: string,
-  configKey: keyof typeof RATE_LIMIT_CONFIG
+  config: keyof typeof RATE_LIMIT_CONFIG
 ): boolean {
-  const config = RATE_LIMIT_CONFIG[configKey];
   const now = Date.now();
-  const entry = rateLimitStore.get(identifier);
+  const { limit, windowMs } = RATE_LIMIT_CONFIG[config];
+  const key = `${identifier}:${config}`;
 
-  if (!entry) {
-    rateLimitStore.set(identifier, {
-      count: 1,
-      resetTime: now + config.windowMs,
-    });
+  const current = rateLimitStore.get(key);
+
+  if (!current || now > current.resetTime) {
+    // 新しいウィンドウまたは初回アクセス
+    rateLimitStore.set(key, { count: 1, resetTime: now + windowMs });
     return true;
   }
 
-  // リセット時間を過ぎている場合はリセット
-  if (now > entry.resetTime) {
-    rateLimitStore.set(identifier, {
-      count: 1,
-      resetTime: now + config.windowMs,
-    });
-    return true;
-  }
-
-  // 制限をチェック
-  if (entry.count >= config.limit) {
-    return false;
+  if (current.count >= limit) {
+    return false; // レート制限超過
   }
 
   // カウントを増加
-  entry.count++;
+  current.count++;
   return true;
 }
 
-// --- レート制限ヘッダー追加関数 ---
+// --- レート制限ヘッダーを追加する関数 ---
 function addRateLimitHeaders(
   response: NextResponse,
   identifier: string,
-  configKey: keyof typeof RATE_LIMIT_CONFIG
-) {
-  const config = RATE_LIMIT_CONFIG[configKey];
-  const entry = rateLimitStore.get(identifier);
-  const now = Date.now();
+  config: keyof typeof RATE_LIMIT_CONFIG
+): void {
+  const { limit } = RATE_LIMIT_CONFIG[config];
+  const key = `${identifier}:${config}`;
+  const current = rateLimitStore.get(key);
 
-  if (entry) {
-    const remaining = Math.max(0, config.limit - entry.count);
-    const resetTime = new Date(entry.resetTime).toISOString();
+  if (current) {
+    const remaining = Math.max(0, limit - current.count);
+    const resetTime = new Date(current.resetTime).toISOString();
 
-    response.headers.set("X-RateLimit-Limit", config.limit.toString());
+    response.headers.set("X-RateLimit-Limit", limit.toString());
     response.headers.set("X-RateLimit-Remaining", remaining.toString());
     response.headers.set("X-RateLimit-Reset", resetTime);
   }

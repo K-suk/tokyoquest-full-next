@@ -3,6 +3,8 @@
 import Link from "next/link";
 import React, { useState } from "react";
 import Image from "next/image";
+import SafeJsonLd from "@/components/SafeJsonLd";
+import { createTokyoQuestWebSiteJsonLd, createTokyoQuestOrganizationJsonLd } from "@/lib/json-ld";
 
 // Simple inline icons (no external deps)
 const IconMapPin = (props: React.SVGProps<SVGSVGElement>) => (
@@ -46,41 +48,15 @@ const IconSakura = (props: React.SVGProps<SVGSVGElement>) => (
 export default function LandingPage() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-    const jsonLd = {
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        name: "TokyoQuest",
-        url: "https://www.tokyoquest.jp/",
-        inLanguage: "en",
-        potentialAction: {
-            "@type": "SearchAction",
-            target: "https://www.tokyoquest.jp/search?q={query}",
-            "query-input": "required name=query",
-        },
-    };
-
-    const orgLd = {
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        name: "TokyoQuest",
-        url: "https://www.tokyoquest.jp/",
-        logo: "https://www.tokyoquest.jp/icon.png",
-        sameAs: [
-            "https://www.instagram.com/tokyoquest/",
-        ],
-    };
+    // 安全なJSON-LDデータ生成
+    const webSiteJsonLd = createTokyoQuestWebSiteJsonLd();
+    const organizationJsonLd = createTokyoQuestOrganizationJsonLd();
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-white via-slate-50 to-slate-100 text-slate-900 antialiased">
-            {/* JSON-LD for SEO */}
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-            />
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(orgLd) }}
-            />
+            {/* 安全なJSON-LD for SEO */}
+            <SafeJsonLd data={webSiteJsonLd} id="website-jsonld" />
+            <SafeJsonLd data={organizationJsonLd} id="organization-jsonld" />
 
             {/* Header */}
             <header className="sticky top-0 z-50 backdrop-blur-md bg-[#e84b4b] border-b border-slate-200/50 shadow-sm">
