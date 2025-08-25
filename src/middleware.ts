@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { generateCSP } from './lib/csp';
+import { generateCSP } from "./lib/csp";
 
 // セッション管理用のインメモリストア
 const sessionStore = new Map<
@@ -165,7 +165,7 @@ function addSecurityHeaders(
   );
 
   // CSP設定 - パス固有のCSPがあればそれを使用、なければ標準CSPを使用
-  const pathSpecificCSP = getPathSpecificCSP(pathname || '', cspConfig.nonce);
+  const pathSpecificCSP = getPathSpecificCSP(pathname || "", cspConfig.nonce);
   const csp = pathSpecificCSP || cspConfig.csp;
   response.headers.set("Content-Security-Policy", csp);
 
@@ -264,8 +264,8 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  // セッション管理のセキュリティチェック
-  if (token) {
+  // セッション管理のセキュリティチェック（ログインページではスキップ）
+  if (token && pathname !== "/login") {
     const sessionId = (token as any).sessionId;
     const lastActivity = (token as any).lastActivity;
     const loginTime = (token as any).loginTime;
@@ -299,6 +299,14 @@ export async function middleware(request: NextRequest) {
       if (timeSinceLastActivity > inactivityLimit) {
         // セッションが期限切れの場合、ログアウト処理
         sessionStore.delete(sessionId);
+        
+        // 既にログインページにいる場合はリダイレクトしない
+        if (pathname === "/login") {
+          const response = NextResponse.next();
+          response.headers.set("x-nonce", cspConfig.nonce);
+          return addSecurityHeaders(response, cspConfig, pathname);
+        }
+        
         const loginUrl = new URL("/login", request.url);
         loginUrl.searchParams.set("error", "Session expired due to inactivity");
         const response = NextResponse.redirect(loginUrl);
@@ -314,6 +322,14 @@ export async function middleware(request: NextRequest) {
       ) {
         // IPアドレスが変更された場合、セッションを無効化
         sessionStore.delete(sessionId);
+        
+        // 既にログインページにいる場合はリダイレクトしない
+        if (pathname === "/login") {
+          const response = NextResponse.next();
+          response.headers.set("x-nonce", cspConfig.nonce);
+          return addSecurityHeaders(response, cspConfig, pathname);
+        }
+        
         const loginUrl = new URL("/login", request.url);
         loginUrl.searchParams.set(
           "error",
