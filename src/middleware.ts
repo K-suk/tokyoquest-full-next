@@ -28,18 +28,107 @@ function generateNonce() {
 }
 
 // --- CSP生成関数 ---
+<<<<<<< Updated upstream
 function generateCSP(nonce: string, isProduction: boolean = false) {
+=======
+function generateCSP(
+  nonce: string,
+  pathname: string = "",
+  isProduction: boolean = false
+) {
+  // パス別のCSP設定
+  if (
+    pathname.startsWith("/api/miasanmia_admin/quests/") &&
+    pathname.includes("/image")
+  ) {
+    // 画像アップロードエンドポイント用CSP
+    return [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https:",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join("; ");
+  }
+
+  if (pathname.startsWith("/uploads/")) {
+    // アップロードファイル用CSP
+    return [
+      "default-src 'self'",
+      "script-src 'self'",
+      "style-src 'self'",
+      "img-src 'self' data:",
+      "font-src 'self' data:",
+      "connect-src 'self'",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join("; ");
+  }
+
+  if (pathname === "/ar") {
+    // ARページ用CSP（MediaPipe対応）
+    return [
+      "default-src 'self'",
+      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://cdn.jsdelivr.net https://storage.googleapis.com`,
+      `style-src 'self' 'nonce-${nonce}'`,
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https:",
+      "worker-src 'self' blob:",
+      "wasm-unsafe-eval",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join("; ");
+  }
+
+  if (pathname === "/login") {
+    // ログインページ用CSP（Google認証対応）
+    return [
+      "default-src 'self'",
+      `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://accounts.google.com https://www.gstatic.com https://www.google.com`,
+      `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
+      "img-src 'self' data: https: https://lh3.googleusercontent.com https://www.google.com",
+      "font-src 'self' https: data: https://fonts.gstatic.com",
+      "connect-src 'self' https: https://accounts.google.com https://www.googleapis.com",
+      "frame-src 'self' https://accounts.google.com",
+      "form-action 'self' https://accounts.google.com",
+      "frame-ancestors 'none'",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join("; ");
+  }
+
+  // 一般的なページ用CSP
+>>>>>>> Stashed changes
   const baseCSP = [
     "default-src 'self'",
     "base-uri 'self'",
     "frame-ancestors 'none'",
     "object-src 'none'",
+<<<<<<< Updated upstream
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https:`,
     `style-src 'self' 'nonce-${nonce}'`,
     "img-src 'self' data: https:",
     "font-src 'self' https: data:",
     "connect-src 'self' https: wss:",
     "upgrade-insecure-requests",
+=======
+    `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://cdn.jsdelivr.net https://accounts.google.com https://www.gstatic.com`,
+    `style-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://fonts.googleapis.com`,
+    // 外部画像ドメインを適切に制限
+    "img-src 'self' data: https://lh3.googleusercontent.com https://picsum.photos https://images.unsplash.com https://unsplash.com https://plus.unsplash.com https://photos.app.goo.gl https://photos.fife.usercontent.google.com https://*.supabase.co https://www.google.com",
+    "font-src 'self' https: data: https://fonts.gstatic.com",
+    "connect-src 'self' https: wss: https://accounts.google.com https://www.googleapis.com",
+    "frame-src 'self' https://accounts.google.com",
+    "form-action 'self' /api/miasanmia_admin/quests/*/image https://accounts.google.com",
+>>>>>>> Stashed changes
   ];
 
   // 開発環境での追加緩和
@@ -47,6 +136,7 @@ function generateCSP(nonce: string, isProduction: boolean = false) {
     return baseCSP
       .map((directive) => {
         if (directive.startsWith("script-src")) {
+<<<<<<< Updated upstream
           return (
             "script-src 'self' 'unsafe-eval' 'nonce-" +
             nonce +
@@ -55,12 +145,15 @@ function generateCSP(nonce: string, isProduction: boolean = false) {
         }
         if (directive.startsWith("style-src")) {
           return "style-src 'self' 'unsafe-inline' 'nonce-" + nonce + "'";
+=======
+          return `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' https://cdn.jsdelivr.net https://storage.googleapis.com https://accounts.google.com https://www.gstatic.com`;
+>>>>>>> Stashed changes
         }
         if (directive.startsWith("img-src")) {
-          return "img-src 'self' data: https: blob:";
+          return "img-src 'self' data: https: blob: https://www.google.com";
         }
         if (directive.startsWith("connect-src")) {
-          return "connect-src 'self' https: wss:";
+          return "connect-src 'self' https: wss: https://accounts.google.com https://www.googleapis.com";
         }
         if (directive.startsWith("font-src")) {
           return "font-src 'self' https: data:";

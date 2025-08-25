@@ -79,8 +79,6 @@ function LoginPageContent() {
 
     return (
         <div className="fixed inset-0 w-full h-full overflow-hidden h-screen">
-            {/* セキュリティ: CSP nonce対応 */}
-            <meta httpEquiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:;" />
 
             {/* 画像のプリロード - パフォーマンス最適化 */}
             <link rel="preload" as="image" href="/images/login-bg.png" fetchPriority="high" />
