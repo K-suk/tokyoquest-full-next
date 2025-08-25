@@ -1,5 +1,13 @@
-import crypto from 'crypto';
-import { v4 } from 'uuid';
+// Edge Runtime対応のため、動的インポートを使用
+let crypto: typeof import('crypto');
+let uuid: typeof import('uuid');
+
+try {
+  crypto = require('crypto');
+  uuid = require('uuid');
+} catch {
+  // Edge Runtimeではfallbackを使用
+}
 
 type CSPConfig = {
   csp: string;
@@ -10,13 +18,43 @@ const isVercelPreview = process.env.VERCEL_ENV === 'preview';
 const isProduction = process.env.NODE_ENV === 'production';
 
 /**
+ * Edge Runtime対応のnonce生成関数
+ */
+function generateNonce(): string {
+  try {
+    // Node.js環境での生成
+    if (crypto && uuid) {
+      const hash = crypto.createHash('sha256');
+      hash.update(uuid.v4());
+      return hash.digest('base64');
+    }
+    
+    // Edge Runtime環境での生成
+    if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.randomUUID) {
+      return btoa(globalThis.crypto.randomUUID()).replace(/[+/=]/g, '').substring(0, 16);
+    }
+
+    if (typeof globalThis.crypto !== 'undefined' && globalThis.crypto.getRandomValues) {
+      const array = new Uint8Array(16);
+      globalThis.crypto.getRandomValues(array);
+      return btoa(String.fromCharCode(...Array.from(array)))
+        .replace(/[+/=]/g, '')
+        .substring(0, 16);
+    }
+  } catch (error) {
+    console.error('Nonce generation failed:', error);
+  }
+
+  // フォールバック: 簡易的なランダム文字列
+  return btoa(Math.random().toString(36)).replace(/[+/=]/g, '').substring(0, 16);
+}
+
+/**
  * Strict CSPアプローチでnonceを生成し、CSPポリシーを設定します
  * @see https://csp.withgoogle.com/docs/strict-csp.html
  */
 export const generateCSP = (): CSPConfig => {
-  const hash = crypto.createHash('sha256');
-  hash.update(v4());
-  const nonce = hash.digest('base64');
+  const nonce = generateNonce();
 
   /**
    * Strict CSPを適用します
