@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
+import { trackQuestSave } from "@/lib/analytics";
 
 export type Quest = {
     id: number;
@@ -94,6 +95,10 @@ export default function QuestCard({ quest }: QuestCardProps) {
             }
 
             // 成功した場合は状態を維持（楽観的更新が正しかった）
+            // Google Analytics イベントを送信
+            if (newSavedState) {
+                trackQuestSave(quest.id, quest.title);
+            }
         } catch (err) {
             console.error(err);
             // エラーが発生した場合は元の状態に戻す

@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "@/components/Providers";
 import type { ReactNode } from "react";
 import ConditionalNavbar from "@/components/ConditionalNavbar";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 export const metadata = {
   title: 'TokyoQuest',
@@ -41,6 +42,7 @@ export default async function RootLayout({
   return (
     <html lang="ja" suppressHydrationWarning className="light">
       <body className="light">
+        <GoogleAnalytics />
         <Providers>
           <ConditionalNavbar />
           {children}

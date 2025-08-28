@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState, useEffect, Suspense } from "react";
+import { trackLogin } from "@/lib/analytics";
 
 function LoginPageContent() {
     const searchParams = useSearchParams();
@@ -68,6 +69,9 @@ function LoginPageContent() {
 
             if (result?.error) {
                 setError('Failed to login. Please try again later.');
+            } else if (result?.ok) {
+                // Google Analytics イベントを送信
+                trackLogin('google');
             }
         } catch (error) {
             console.error('Login error:', error);
