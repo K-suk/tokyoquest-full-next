@@ -1,7 +1,7 @@
 declare global {
   interface Window {
     gtag: (
-      command: 'config' | 'event' | 'js',
+      command: "config" | "event" | "js",
       targetId: string,
       config?: Record<string, any>
     ) => void;
@@ -12,8 +12,8 @@ export const GA_TRACKING_ID = process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
 
 // Google Analytics 4 のページビューを送信
 export const pageview = (url: string) => {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('config', GA_TRACKING_ID!, {
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("config", GA_TRACKING_ID!, {
       page_location: url,
     });
   }
@@ -31,8 +31,8 @@ export const event = ({
   label?: string;
   value?: number;
 }) => {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('event', action, {
+  if (typeof window !== "undefined" && window.gtag) {
+    window.gtag("event", action, {
       event_category: category,
       event_label: label,
       value: value,
@@ -43,8 +43,8 @@ export const event = ({
 // ログインイベントを送信
 export const trackLogin = (method: string) => {
   event({
-    action: 'login',
-    category: 'authentication',
+    action: "login",
+    category: "authentication",
     label: method,
   });
 };
@@ -52,8 +52,8 @@ export const trackLogin = (method: string) => {
 // クエスト完了イベントを送信
 export const trackQuestCompletion = (questId: number, questTitle: string) => {
   event({
-    action: 'quest_complete',
-    category: 'quest',
+    action: "quest_complete",
+    category: "quest",
     label: questTitle,
     value: questId,
   });
@@ -62,8 +62,8 @@ export const trackQuestCompletion = (questId: number, questTitle: string) => {
 // クエスト保存イベントを送信
 export const trackQuestSave = (questId: number, questTitle: string) => {
   event({
-    action: 'quest_save',
-    category: 'quest',
+    action: "quest_save",
+    category: "quest",
     label: questTitle,
     value: questId,
   });

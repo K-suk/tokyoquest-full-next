@@ -26,6 +26,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: "https://www.tokyoquest.jp/sitemap.xml",
+    sitemap: "https://tokyoquest.jp/sitemap.xml",
   };
 }
