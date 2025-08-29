@@ -357,22 +357,24 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
 
             {/* Complete Quest モーダル */}
             {showCompleteModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div
                         className={`absolute inset-0 bg-black bg-opacity-20 backdrop-blur-[1px] transition-opacity duration-300 ease-out ${modalAnimation ? 'opacity-100' : 'opacity-0'}`}
                         onClick={closeModal}
                     />
-                    <div className={`relative bg-white p-6 rounded-lg max-w-md w-full mx-4 shadow-2xl transform transition-all duration-300 ease-out ${modalAnimation ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">Complete Quest</h2>
-                            <button
-                                onClick={closeModal}
-                                className="text-2xl hover:opacity-80 transition-opacity duration-200"
-                            >
-                                ✕
-                            </button>
+                    <div className={`relative bg-white rounded-lg max-w-md w-full max-h-full overflow-y-auto shadow-2xl transform transition-all duration-300 ease-out ${modalAnimation ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}>
+                        <div className="sticky top-0 bg-white p-6 pb-4 border-b border-gray-100">
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-xl font-bold">Complete Quest</h2>
+                                <button
+                                    onClick={closeModal}
+                                    className="text-2xl hover:opacity-80 transition-opacity duration-200"
+                                >
+                                    ✕
+                                </button>
+                            </div>
                         </div>
-                        <div className="space-y-4">
+                        <div className="p-6 pt-4 space-y-4">
                             <p className="text-gray-600 mb-4">
                                 Take a photo or upload an image to complete this quest!
                             </p>
@@ -426,20 +428,19 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
 
                             {selectedImage && (
                                 <div className="space-y-4">
-                                    <div className="relative aspect-video w-full overflow-hidden rounded-lg border border-gray-200">
+                                    <div className="w-full overflow-hidden rounded-lg border border-gray-200">
                                         {selectedImage.startsWith('data:video/') ? (
                                             <video
                                                 src={selectedImage}
                                                 controls
-                                                className="w-full h-full object-cover"
+                                                className="w-full h-auto"
                                                 preload="metadata"
                                             />
                                         ) : (
-                                            <Image
+                                            <img
                                                 src={selectedImage}
                                                 alt="Quest completion proof"
-                                                fill
-                                                className="object-cover"
+                                                className="w-full h-auto object-contain"
                                             />
                                         )}
                                     </div>
