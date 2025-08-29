@@ -386,29 +386,6 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                                     >
                                         📷 Take Photo
                                     </button>
-                                    <button
-                                        onClick={() => {
-                                            const input = document.createElement('input');
-                                            input.type = 'file';
-                                            input.accept = 'video/*';
-                                            input.capture = 'environment';
-                                            input.onchange = (e) => {
-                                                const file = (e.target as HTMLInputElement).files?.[0];
-                                                if (file) {
-                                                    const reader = new FileReader();
-                                                    reader.onload = (e) => {
-                                                        const result = e.target?.result as string;
-                                                        setSelectedImage(result);
-                                                    };
-                                                    reader.readAsDataURL(file);
-                                                }
-                                            };
-                                            input.click();
-                                        }}
-                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
-                                    >
-                                        🎥 Record Video
-                                    </button>
                                 </div>
 
                                 {/* アップロードオプション */}
@@ -434,28 +411,6 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                                         className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
                                     >
                                         📤 Upload Image
-                                    </button>
-                                    <button
-                                        onClick={() => {
-                                            const input = document.createElement('input');
-                                            input.type = 'file';
-                                            input.accept = 'video/*';
-                                            input.onchange = (e) => {
-                                                const file = (e.target as HTMLInputElement).files?.[0];
-                                                if (file) {
-                                                    const reader = new FileReader();
-                                                    reader.onload = (e) => {
-                                                        const result = e.target?.result as string;
-                                                        setSelectedImage(result);
-                                                    };
-                                                    reader.readAsDataURL(file);
-                                                }
-                                            };
-                                            input.click();
-                                        }}
-                                        className="w-full flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md transition-colors duration-200"
-                                    >
-                                        🎬 Upload Video
                                     </button>
                                 </div>
                             </div>
