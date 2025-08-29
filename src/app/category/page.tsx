@@ -66,7 +66,7 @@ export default async function CategoryPage() {
                     {tags.map((tag) => (
                         <Link
                             key={tag.id}
-                            href={`/blog/category/${tag.id}`}
+                            href={`/category/${tag.id}`}
                             className="flex flex-col items-center"
                         >
                             <div className="w-20 h-20 relative mb-3">
