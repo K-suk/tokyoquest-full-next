@@ -4,6 +4,7 @@ import { Providers } from "@/components/Providers";
 import type { ReactNode } from "react";
 import ConditionalNavbar from "@/components/ConditionalNavbar";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata = {
   title: 'TokyoQuest',
@@ -43,6 +44,7 @@ export default async function RootLayout({
     <html lang="ja" suppressHydrationWarning className="light">
       <body className="light">
         <GoogleAnalytics />
+        <SpeedInsights />
         <Providers>
           <ConditionalNavbar />
           {children}

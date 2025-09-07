@@ -1725,7 +1725,7 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onOpenEdi
                                                     alt={quest.title}
                                                     fill
                                                     className="object-cover"
-                                                    quality={75}
+                                                    quality={60}
                                                     sizes="64px"
                                                 />
                                             </div>

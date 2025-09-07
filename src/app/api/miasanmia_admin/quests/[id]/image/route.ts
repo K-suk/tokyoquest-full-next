@@ -76,7 +76,7 @@ export async function POST(
       .from("quest-images")
       .upload(fileName, buffer, {
         contentType: file.type,
-        cacheControl: "3600",
+        cacheControl: "86400", // 24時間キャッシュ（3600秒から86400秒に変更）
         upsert: false,
       });
 

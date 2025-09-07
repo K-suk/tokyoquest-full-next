@@ -75,9 +75,12 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'self'; sandbox;",
-    formats: ["image/webp", "image/avif"],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    // フォーマットをWebPのみに制限（AVIFは変換コストが高い）
+    formats: ["image/webp"],
+    // デバイスサイズを必要最小限に削減
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    // 画像サイズを必要最小限に削減
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
   async headers() {
     return [
@@ -159,11 +162,26 @@ const nextConfig: NextConfig = {
               "connect-src 'self'",
             ].join("; "),
           },
+          // Quest画像のキャッシュ設定
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, s-maxage=86400", // 24時間キャッシュ
+          },
         ],
       },
       // 静的アセットの長期キャッシュ
       {
         source: "/_next/static/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      // Vercel Image Optimization のキャッシュ強化
+      {
+        source: "/_next/image/:path*",
         headers: [
           {
             key: "Cache-Control",

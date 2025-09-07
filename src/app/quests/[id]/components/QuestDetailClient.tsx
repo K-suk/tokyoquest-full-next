@@ -309,8 +309,8 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                             width={400}
                             height={200}
                             className="w-full h-48 md:h-64 object-cover rounded-lg"
-                            quality={75}
-                            priority={true}
+                            quality={60}
+                            priority={false}
                         />
                     ) : (
                         <Image
