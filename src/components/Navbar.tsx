@@ -3,9 +3,11 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
+import { useStoryCount } from "@/hooks/useStoryCount";
 
 const Navbar = () => {
     const [open, setOpen] = useState(false);
+    const { unlockedCount: unlockedStoriesCount } = useStoryCount();
 
     const handleSignOut = () => {
         signOut({ callbackUrl: "/login" });
@@ -19,10 +21,49 @@ const Navbar = () => {
                 </Link>
             </div>
 
-            {/* Hamburger Menu Button */}
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center space-x-6">
+                <Link
+                    href="/"
+                    className="text-lg hover:opacity-80 transition-opacity duration-200"
+                >
+                    Home
+                </Link>
+                <Link
+                    href="/stories"
+                    className="text-lg hover:opacity-80 transition-opacity duration-200 flex items-center gap-2"
+                >
+                    Stories
+                    {unlockedStoriesCount > 0 && (
+                        <span className="bg-yellow-400 text-red-600 text-xs font-bold px-2 py-1 rounded-full">
+                            {unlockedStoriesCount}
+                        </span>
+                    )}
+                </Link>
+                <Link
+                    href="/profile"
+                    className="text-lg hover:opacity-80 transition-opacity duration-200"
+                >
+                    Profile
+                </Link>
+                <Link
+                    href="/saved_quests"
+                    className="text-lg hover:opacity-80 transition-opacity duration-200"
+                >
+                    Saved Quests
+                </Link>
+                <button
+                    onClick={handleSignOut}
+                    className="text-lg hover:opacity-80 transition-opacity duration-200"
+                >
+                    Sign Out
+                </button>
+            </nav>
+
+            {/* Mobile Hamburger Menu Button */}
             <button
                 onClick={() => setOpen(true)}
-                className="text-5xl hover:opacity-80 transition-opacity duration-200"
+                className="md:hidden text-5xl hover:opacity-80 transition-opacity duration-200"
                 aria-label="Open menu"
             >
                 ☰
@@ -57,6 +98,20 @@ const Navbar = () => {
                                     className="text-2xl hover:opacity-80 transition-opacity duration-200 block"
                                 >
                                     Home
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/stories"
+                                    onClick={() => setOpen(false)}
+                                    className="text-2xl hover:opacity-80 transition-opacity duration-200 block flex items-center gap-2"
+                                >
+                                    Stories
+                                    {unlockedStoriesCount > 0 && (
+                                        <span className="bg-yellow-400 text-red-600 text-sm font-bold px-2 py-1 rounded-full">
+                                            {unlockedStoriesCount}
+                                        </span>
+                                    )}
                                 </Link>
                             </li>
                             <li>

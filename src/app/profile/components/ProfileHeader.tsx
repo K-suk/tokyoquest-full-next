@@ -1,15 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { UserDTO } from "@/lib/dto";
 import { updateProfileSchema, validateInput } from "@/lib/validation";
+import { BookOpen, Star } from "lucide-react";
 
 interface ProfileHeaderProps {
     user: UserDTO;
 }
 
 export default function ProfileHeader({ user }: ProfileHeaderProps) {
+    const router = useRouter();
+
     // モーダル関連の状態
     const [showModal, setShowModal] = useState(false);
     const [modalAnimation, setModalAnimation] = useState(false);
@@ -21,6 +25,19 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
     const [toastType, setToastType] = useState<"success" | "error">("success");
     const [currentUser, setCurrentUser] = useState(user);
 
+    // Level 0 の場合のウェルカムモーダル
+    const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+    const [welcomeModalAnimation, setWelcomeModalAnimation] = useState(false);
+    const [isUpdatingLevel, setIsUpdatingLevel] = useState(false);
+
+    // Level 0 の場合のウェルカムモーダルを表示
+    useEffect(() => {
+        if (currentUser.level === 0) {
+            setShowWelcomeModal(true);
+            setTimeout(() => setWelcomeModalAnimation(true), 100);
+        }
+    }, [currentUser.level]);
+
     // トースト通知を表示
     const showToastMessage = (message: string, type: "success" | "error") => {
         setToastMessage(message);
@@ -29,6 +46,40 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
         setTimeout(() => {
             setShowToast(false);
         }, 3000);
+    };
+
+    // レベルを1に更新して最初のストーリーに遷移
+    const handleStartJourney = async () => {
+        setIsUpdatingLevel(true);
+        try {
+            const response = await fetch('/api/profile/level', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    level: 1,
+                }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setCurrentUser(data.user);
+                setShowWelcomeModal(false);
+                setWelcomeModalAnimation(false);
+
+                // 最初のストーリーに遷移
+                router.push('/stories/1');
+            } else {
+                const errorData = await response.json();
+                showToastMessage(`Error: ${errorData.error}`, "error");
+            }
+        } catch (error) {
+            console.error('Error updating level:', error);
+            showToastMessage("Failed to start journey", "error");
+        } finally {
+            setIsUpdatingLevel(false);
+        }
     };
 
     // モーダルを開く
@@ -203,6 +254,64 @@ export default function ProfileHeader({ user }: ProfileHeaderProps) {
                                     {message}
                                 </p>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ウェルカムモーダル (Level 0 の場合) */}
+            {showWelcomeModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div
+                        className={`absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm transition-opacity duration-300 ease-out ${welcomeModalAnimation ? 'opacity-100' : 'opacity-0'
+                            }`}
+                    />
+                    <div
+                        className={`relative bg-white p-8 rounded-2xl max-w-md w-full mx-4 shadow-2xl transform transition-all duration-300 ease-out ${welcomeModalAnimation ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+                            }`}
+                    >
+                        <div className="text-center">
+                            <div className="mb-6">
+                                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <BookOpen className="w-10 h-10 text-white" />
+                                </div>
+                                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                                    Welcome to TokyoQuest!
+                                </h2>
+                                <p className="text-gray-600 leading-relaxed">
+                                    Your journey through Tokyo&apos;s mysteries begins now.
+                                    Complete quests to unlock stories and discover the secrets of this amazing city.
+                                </p>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="bg-blue-50 p-4 rounded-lg">
+                                    <div className="flex items-center justify-center space-x-2 text-blue-700">
+                                        <Star className="w-5 h-5" />
+                                        <span className="font-medium">Start your adventure</span>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={handleStartJourney}
+                                    disabled={isUpdatingLevel}
+                                    className={`w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white py-3 px-6 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 ${isUpdatingLevel ? 'opacity-50 cursor-not-allowed' : ''
+                                        }`}
+                                >
+                                    {isUpdatingLevel ? (
+                                        <div className="flex items-center justify-center space-x-2">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                                            <span>Starting Journey...</span>
+                                        </div>
+                                    ) : (
+                                        "Begin Your Story"
+                                    )}
+                                </button>
+
+                                <p className="text-sm text-gray-500">
+                                    This will unlock your first story chapter
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>

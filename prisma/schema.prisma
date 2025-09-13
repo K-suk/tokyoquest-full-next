@@ -164,3 +164,40 @@ model BlogContent {
   
   @@map("blog_contents")
 }
+
+model StoryChapter {
+  id          Int      @id @default(autoincrement())
+  level       Int      @unique
+  title       String
+  bodyEn      String   @db.Text
+  riddleEn    String?  @db.Text
+  themeHints  String[]
+  estReadSec  Int?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("story_chapters")
+}
+
+model StoryProgress {
+  id                String   @id @default(cuid())
+  userId            String   @unique @map("user_id")
+  unlockedLevels    Int[]
+  lastReadAtByLevel Json     @default("{}") @map("last_read_at_by_level")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@map("story_progress")
+}
+
+model StoryAnswer {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  level     Int
+  answer    String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, level])
+  @@map("story_answers")
+}

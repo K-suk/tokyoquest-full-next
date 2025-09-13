@@ -4,6 +4,8 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import Image from 'next/image';
 import Link from 'next/link';
 import { QuestDTO } from '@/lib/dto';
+import { dispatchStoryUnlocked } from '@/lib/story-events';
+import { LevelUpModal } from '@/components/LevelUpModal';
 
 interface QuestMeta extends Omit<QuestDTO, 'location' | 'badget'> {
     badget?: string;
@@ -50,6 +52,15 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
     const [newComment, setNewComment] = useState('');
     const [newRating, setNewRating] = useState(0);
     const [submittingReview, setSubmittingReview] = useState(false);
+
+    // ■ レベルアップ関連
+    const [levelUpData, setLevelUpData] = useState<{
+        oldLevel: number;
+        newLevel: number;
+        expGained: number;
+        unlockedStories: number[];
+    } | null>(null);
+    const [showLevelUpModal, setShowLevelUpModal] = useState(false);
 
     // ■ Complete Quest 用ステート
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -173,7 +184,21 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
             });
 
             if (response.ok) {
-                alert('Quest completed successfully! You earned 100 experience points!');
+                const result = await response.json();
+
+                // レベルアップデータがある場合はモーダルを表示
+                if (result.levelUp) {
+                    setLevelUpData(result.levelUp);
+                    setShowLevelUpModal(true);
+
+                    // ストーリー解放イベントを発火
+                    if (result.levelUp.unlockedStories.length > 0) {
+                        dispatchStoryUnlocked();
+                    }
+                } else {
+                    alert('Quest completed successfully! You earned 100 experience points!');
+                }
+
                 // quest状態を再取得
                 await fetchQuestStatus();
                 setShowCompleteModal(false);
@@ -581,6 +606,28 @@ export default function QuestDetailClient({ questMeta, questId }: Props) {
                     </button>
                 </div>
             </section>
+
+            {/* Level Up Modal */}
+            {levelUpData && (
+                <LevelUpModal
+                    isOpen={showLevelUpModal}
+                    onClose={() => {
+                        setShowLevelUpModal(false);
+                        setLevelUpData(null);
+                    }}
+                    onReadStory={(level) => {
+                        setShowLevelUpModal(false);
+                        setLevelUpData(null);
+                        window.open(`/stories/${level}`, '_blank');
+                    }}
+                    onViewStories={() => {
+                        setShowLevelUpModal(false);
+                        setLevelUpData(null);
+                        window.open('/stories', '_blank');
+                    }}
+                    levelUpData={levelUpData}
+                />
+            )}
         </div>
     );
 } 

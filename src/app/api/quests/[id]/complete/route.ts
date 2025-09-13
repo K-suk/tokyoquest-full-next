@@ -5,6 +5,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-config";
 import { prisma } from "@/lib/prisma";
 import { questRateLimiter, withRateLimit } from "@/lib/rate-limit";
+import { calculateLevel } from "@/lib/level-system";
+import { storyTelemetry } from "@/lib/telemetry";
 
 // キャッシュを無効化
 export const dynamic = "force-dynamic";
@@ -139,19 +141,77 @@ export async function POST(
       },
     });
 
-    // 11) 経験値を追加（レベルアップロジックは別途実装）
+    // 11) 経験値を追加してレベルアップをチェック
+    const currentUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { exp: true, level: true },
+    });
+
+    if (!currentUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const expGained = 100; // クエスト完了で100経験値
+    const newExp = currentUser.exp + expGained;
+    const oldLevel = calculateLevel(currentUser.exp);
+    const newLevel = calculateLevel(newExp);
+
     const updatedUser = await prisma.user.update({
       where: { id: user.id },
       data: {
-        exp: {
-          increment: 100, // 仮の経験値
-        },
+        exp: newExp,
+        level: newLevel,
       },
       select: {
         exp: true,
         level: true,
       },
     });
+
+    // 12) レベルアップした場合、ストーリーをアンロック
+    const leveledUp = newLevel > oldLevel;
+    let unlockedStories: number[] = [];
+
+    if (leveledUp) {
+      // 新しいレベルに達したストーリーチャプターをアンロック
+      for (let level = oldLevel + 1; level <= newLevel; level++) {
+        if (level <= 10) {
+          // ストーリーはレベル10まで
+          try {
+            // ストーリープログレスを取得または作成
+            let storyProgress = await prisma.storyProgress.findUnique({
+              where: { userId: user.id },
+            });
+
+            if (!storyProgress) {
+              storyProgress = await prisma.storyProgress.create({
+                data: {
+                  userId: user.id,
+                  unlockedLevels: [],
+                  lastReadAtByLevel: {},
+                },
+              });
+            }
+
+            // レベルがまだアンロックされていない場合のみ追加
+            if (!storyProgress.unlockedLevels.includes(level)) {
+              await prisma.storyProgress.update({
+                where: { id: storyProgress.id },
+                data: {
+                  unlockedLevels: [...storyProgress.unlockedLevels, level],
+                },
+              });
+              unlockedStories.push(level);
+
+              // テレメトリーイベントを送信
+              storyTelemetry.unlocked(level);
+            }
+          } catch (error) {
+            console.error(`Error unlocking story level ${level}:`, error);
+          }
+        }
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -163,6 +223,14 @@ export async function POST(
         exp: updatedUser.exp,
         level: updatedUser.level,
       },
+      levelUp: leveledUp
+        ? {
+            oldLevel,
+            newLevel,
+            expGained,
+            unlockedStories,
+          }
+        : null,
     });
   } catch (error) {
     console.error("Error completing quest:", error);

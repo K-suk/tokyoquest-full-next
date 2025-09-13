@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "node --loader ts-node/esm scripts/seed-tags.ts",
+    "seed:stories": "node --loader ts-node/esm scripts/seed-stories.ts",
     "link": "node --loader ts-node/esm scripts/link-quests-tags.ts",
     "postinstall": "prisma generate"
   },
