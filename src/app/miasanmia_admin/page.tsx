@@ -1306,7 +1306,7 @@ export default function AdminPage() {
                                     {editingQuest.imgUrl && (
                                         <div className="mt-2">
                                             <img
-                                                src={editingQuest.imgUrl}
+                                                src="/images/no_image.png"
                                                 alt="Quest image preview"
                                                 className="w-32 h-24 object-cover rounded border"
                                             />
@@ -1718,33 +1718,16 @@ function QuestsTab({ quests, filters, onUpdateFilters, onOpenTagModal, onOpenEdi
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 w-16">
-                                        {quest.imgUrl ? (
-                                            <div className="w-16 h-16 relative bg-gray-200 rounded overflow-hidden">
-                                                <Image
-                                                    src={quest.imgUrl}
-                                                    alt={quest.title}
-                                                    fill
-                                                    className="object-cover"
-                                                    quality={60}
-                                                    sizes="64px"
-                                                />
-                                            </div>
-                                        ) : (
-                                            <div
-                                                className="w-16 h-16 border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-xs text-center"
-                                                onDrop={(e) => {
-                                                    e.preventDefault();
-                                                    const file = e.dataTransfer.files[0];
-                                                    if (file && file.type.startsWith('image/')) {
-                                                        onUploadImage(quest.id, file);
-                                                    }
-                                                }}
-                                                onDragOver={(e) => e.preventDefault()}
-                                                onDragEnter={(e) => e.preventDefault()}
-                                            >
-                                                Drop image here
-                                            </div>
-                                        )}
+                                        <div className="w-16 h-16 relative bg-gray-200 rounded overflow-hidden">
+                                            <Image
+                                                src="/images/no_image.png"
+                                                alt={quest.title}
+                                                fill
+                                                className="object-cover"
+                                                quality={60}
+                                                sizes="64px"
+                                            />
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 text-sm font-medium w-72 min-w-[288px]">
                                         <div className="flex flex-wrap gap-2 items-center">

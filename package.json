@@ -53,5 +53,8 @@
     "defaults",
     "not ie 11",
     "not ie_mob 11"
-  ]
+  ],
+  "optionalDependencies": {
+    "lightningcss-darwin-x64": "^1.32.0"
+  }
 }

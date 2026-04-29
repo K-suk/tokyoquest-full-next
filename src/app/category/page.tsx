@@ -70,18 +70,12 @@ export default async function CategoryPage() {
                             className="flex flex-col items-center"
                         >
                             <div className="w-20 h-20 relative mb-3">
-                                {tag.imageUrl ? (
-                                    <Image
-                                        src={tag.imageUrl}
-                                        alt={tag.name}
-                                        fill
-                                        className="object-cover rounded-lg"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full bg-gray-200 rounded-lg flex items-center justify-center">
-                                        <span className="text-gray-500 text-xs text-center">No image</span>
-                                    </div>
-                                )}
+                                <Image
+                                    src="/images/no_image.png"
+                                    alt={tag.name}
+                                    fill
+                                    className="object-cover rounded-lg"
+                                />
                             </div>
                             <h3 className="text-sm font-semibold text-center mb-1">{tag.name}</h3>
                             <span className="text-xs text-gray-500">{tag._count.quests} quests</span>

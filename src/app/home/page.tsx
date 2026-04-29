@@ -139,18 +139,12 @@ export default async function HomePage({
               className="flex flex-col items-center"
             >
               <div className="w-16 h-16 relative mb-1">
-                {tag.imageUrl ? (
-                  <Image
-                    src={tag.imageUrl}
-                    alt={tag.name}
-                    fill
-                    className="object-cover rounded-md"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
-                    <span className="text-gray-500 text-xs">No image</span>
-                  </div>
-                )}
+                <Image
+                  src="/images/no_image.png"
+                  alt={tag.name}
+                  fill
+                  className="object-cover rounded-md"
+                />
               </div>
               <span className="text-sm text-center">{tag.name}</span>
               <span className="text-xs text-gray-500">{tag._count.quests} quests</span>

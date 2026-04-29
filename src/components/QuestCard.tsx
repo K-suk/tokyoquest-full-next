@@ -133,7 +133,7 @@ export default function QuestCard({ quest }: QuestCardProps) {
         >
             <div className="relative w-full h-[200px]">
                 <Image
-                    src={quest.imgUrl}
+                    src="/images/no_image.png"
                     alt={quest.title}
                     fill
                     className="object-cover"
